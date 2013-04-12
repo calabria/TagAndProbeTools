@@ -51,49 +51,41 @@
 using namespace std;
 using namespace RooFit;
 
-TH1F * massPlotProducer(TTree * fitter_tree){
-
-	Float_t mass1;
-	fitter_tree->SetBranchAddress("mass", &mass1);
-	TH1F *hMass = new TH1F("mass","mass distribution",200,0,200);
-	Int_t nentries = (Int_t)fitter_tree->GetEntries();
-	for (Int_t i=0; i<nentries; i++) {
-		fitter_tree->GetEntry(i);
-		hMass->Fill(mass1);
-	}
-
-	return hMass;
-
-}
-
 RooDataHist dataSetProducer(TTree * fullTreeSgnCut, RooRealVar mass, float NumSgnP, float ScaleFactorSgn, float weight){
 
-  	RooDataSet sgnDataSet("sgnDataSet", "dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeSgnCut ) );
-  	//if(NumSgnP*ScaleFactorSgn != 1) sgnDataSet.reduce(EventRange(1,(int)( NumSgnP*ScaleFactorSgn)));
-        cout<<"sgnDataSet "<<sgnDataSet.sumEntries()<<endl;
-  	RooDataHist sgnDataHist("sgnDataHist", "", RooArgSet(mass), sgnDataSet, weight*ScaleFactorSgn);
+	TH1F* hMass = new TH1F("hMass","",50,70,120); 
+  	if(ScaleFactorSgn != 1) {
+  		fullTreeSgnCut->Draw("mass>>hMass","tag_puMCWeightRun2012");
+		hMass->Scale(ScaleFactorSgn*0.987883333*0.985533333*0.9548436313);
+	}
+	else fullTreeSgnCut->Draw("mass>>hMass");
+        cout<<"sgnDataSet "<<fullTreeSgnCut->GetEntries()<<endl;
+        cout<<"scaled "<<hMass->Integral(0,51)<<endl;
+  	RooDataHist sgnDataHist("sgnDataHist", "", RooArgSet(mass), hMass, weight);
 
 	return sgnDataHist;
 
 }
 
 void fitStudyTemplatesFromMC(
-			const string tnp_                = "muToTau",
-			const string category_           = "passingIsoLooseMuonVetoLoose",
-			const string bin_                = "abseta<1.2",
-			double nBins_                    = 50,
-			const double binCenter_          = 0.75,
-			const double binWidth_           = 0.75,
-			double xLow_                     = 70,
-			double xHigh_                    = 120,
-			bool doBinned_                   = true,
-			const string condition_          = ">=",
-			double cutValue_                 = 0.5,
-			const string additionalCut_      = "pt > 0 && pair_charge == 0 && tag_Mt < 40 && tag_IsoMu24_eta2p1 && tag_muPFIsolation < 0.1",
-			const string additionalCutSS_    = "pt > 0 && pair_charge != 0 && tag_Mt < 40 && tag_IsoMu24_eta2p1 && tag_muPFIsolation < 0.1",
-			const string additionalCutHiMt_  = "pt > 0 && pair_charge == 0 && tag_Mt > 60 && tag_IsoMu24_eta2p1 && tag_muPFIsolation < 0.1",
-			float scale_                     = 0.0
-			){
+	const string tnp_                = "muToTau",
+	const string category_           = "passingIsoLooseMuonVetoLoose",
+	const string bin_                = "abseta<1.2",
+	double nBins_                    = 50,
+	const double binCenter_          = 0.75,
+	const double binWidth_           = 0.75,
+	double xLow_                     = 70,
+	double xHigh_                    = 120,
+	bool doBinned_                   = true,
+	const string condition_          = ">=",
+	double cutValue_                 = 0.5,
+	//const string additionalCut_      = "pt > 0 && pair_charge == 0 && tag_Mt < 40 && tag_IsoMu24_eta2p1 > 0.5 && tag_muPFIsolation < 0.1",
+	//const string additionalCutSS_    = "pt > 0 && pair_charge != 0 && tag_Mt < 40 && tag_IsoMu24_eta2p1 > 0.5 && tag_muPFIsolation < 0.1",
+	//const string additionalCutHiMt_  = "pt > 0 && pair_charge == 0 && tag_Mt > 60 && tag_IsoMu24_eta2p1 > 0.5 && tag_muPFIsolation < 0.1"
+	const string additionalCut_      = "pt > 0 && pair_charge == 0 && tag_Mt < 40 && tag_IsoMu24_eta2p1 > 0.5 && tag_triggerBitSingleMu > 0.5",
+	const string additionalCutSS_    = "pt > 0 && pair_charge != 0 && tag_Mt < 40 && tag_IsoMu24_eta2p1 > 0.5 && tag_triggerBitSingleMu > 0.5",
+	const string additionalCutHiMt_  = "pt > 0 && pair_charge == 0 && tag_Mt > 60 && tag_IsoMu24_eta2p1 > 0.5 && tag_triggerBitSingleMu > 0.5"
+	){
   
   TCanvas *c2 = new TCanvas("canvas","canvas",10,30,650,600);
   c2->SetGrid(0,0);
@@ -165,10 +157,10 @@ void fitStudyTemplatesFromMC(
   TH1F* hS           = new TH1F("hS","",1,0,150);
   TH1F* hSP          = new TH1F("hSP","",1,0,150);
 
-  fullTreeSgn->Draw("mass>>hS",Form("tag_puMCWeightRun2012*(%s && mass>%f && mass<%f && mcTrue && pair_charge==0 && tag_Mt < 40 && tag_IsoMu24_eta2p1 && tag_muPFIsolation < 0.1 )",bin_.c_str(),xLow_,xHigh_));
-  double SGNtrue = hS->Integral();
-  fullTreeSgn->Draw("mass>>hSP",Form("tag_puMCWeightRun2012*(%s && %s>=%f && mass>%f && mass<%f && mcTrue && pair_charge==0 && tag_Mt < 40 && tag_IsoMu24_eta2p1 && tag_muPFIsolation < 0.1 )",bin_.c_str(),category_.c_str(),cutValue_,xLow_,xHigh_));
-  double SGNtruePass = hSP->Integral();
+  fullTreeSgn->Draw("mass>>hS",Form("tag_puMCWeightRun2012*(%s && mass>%f && mass<%f && mcTrue && pair_charge==0 && tag_Mt < 40 && tag_IsoMu24_eta2p1 && tag_triggerBitSingleMu > 0.5 )",bin_.c_str(),xLow_,xHigh_));
+  double SGNtrue = hS->Integral(0,151);
+  fullTreeSgn->Draw("mass>>hSP",Form("tag_puMCWeightRun2012*(%s && %s>=%f && mass>%f && mass<%f && mcTrue && pair_charge==0 && tag_Mt < 40 && tag_IsoMu24_eta2p1 && tag_triggerBitSingleMu > 0.5 )",bin_.c_str(),category_.c_str(),cutValue_,xLow_,xHigh_));
+  double SGNtruePass = hSP->Integral(0,151);
 
   double McTruthEff    = SGNtruePass/SGNtrue;
   double BinomialError = TMath::Sqrt(SGNtruePass/SGNtrue*(1-SGNtruePass/SGNtrue)/SGNtrue);
@@ -299,7 +291,7 @@ void fitStudyTemplatesFromMC(
 
   //Normalization passing
 
-  float Lumi_ = 19490.61100;
+  float Lumi_ = 19484.55;
 
   //Cross sections
   float SigmaWJets = 37509.0;
@@ -365,21 +357,11 @@ void fitStudyTemplatesFromMC(
   //////////////////////////////////////
 
   mass.setBins( 50 );
-  //RooDataSet sgnDataSet("sgnDataSet", "dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeSgnCut ) );
-  //sgnDataSet.reduce(EventRange(1,(int)( NumSgnP*ScaleFactorSgn)));
-  //RooDataHist sgnDataHist("sgnDataHist", "", RooArgSet(mass), sgnDataSet, 1.0);
   RooDataHist sgnDataHist = dataSetProducer(fullTreeSgnCut, mass, NumSgnP, ScaleFactorSgn, 1.0);
-  RooHistPdf sgnTemplatePdf("sgnTemplatePdf", "", RooArgSet(mass), sgnDataHist, 4);
+  RooHistPdf sgnTemplatePdf("sgnTemplatePdf", "", RooArgSet(mass), sgnDataHist,4);
 
-  //RooDataSet sgnDataSetSS("sgnDataSetSS","dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeSgnSSCut ) );
-  //sgnDataSetSS.reduce(EventRange(1,(int)( NumSgnSSP*ScaleFactorSgn)));
-  //RooDataHist sgnDataHistSS("sgnDataHistSS", "", RooArgSet(mass), sgnDataSetSS, -1.0);
   RooDataHist sgnDataHistSS = dataSetProducer(fullTreeSgnSSCut, mass, NumSgnSSP, ScaleFactorSgn, -1.0);
 
-  //RooDataSet sgnDataSetHiMt("sgnDataSetHiMt","dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeSgnHiMtCut ) );
-  //sgnDataSetHiMt.reduce(EventRange(1,(int)( NumSgnHiMtP*ScaleFactorSgn)));
-  //cout<<"sgnDataSetHiMt "<<sgnDataSetHiMt.sumEntries()<<endl;
-  //RooDataHist sgnDataHistHiMt("sgnDataHistHiMt", "", RooArgSet(mass), sgnDataSetHiMt, -1.0);
   RooDataHist sgnDataHistHiMt = dataSetProducer(fullTreeSgnHiMtCut, mass, NumSgnHiMtP, ScaleFactorSgn, -1.0);
 
   /////////////////////////////////////////
@@ -387,20 +369,11 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  //RooDataSet wjetsDataSet("wjetsDataSet", "dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeWJetsCut ) );
-  //wjetsDataSet.reduce(EventRange(1,(int)( NumWJetsP*ScaleFactorWJets)));
-  //RooDataHist wjetsDataHist("wjetsDataHist", "", RooArgSet(mass), wjetsDataSet, 1.0);
   RooDataHist wjetsDataHist = dataSetProducer(fullTreeWJetsCut, mass, NumWJetsP, ScaleFactorWJets, 1.0);
   RooHistPdf wjetsHistPdf("wjetsHistPdf", "", RooArgSet(mass), wjetsDataHist, 4);
 
-  //RooDataSet wjetsDataSetSS("wjetsDataSetSS", "dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeWJetsSSCut ) );
-  //wjetsDataSetSS.reduce(EventRange(1,(int)( NumWJetsSSP*ScaleFactorWJets)));
-  //RooDataHist wjetsDataHistSS("wjetsDataHistSS", "", RooArgSet(mass), wjetsDataSetSS, -1.0);
   RooDataHist wjetsDataHistSS = dataSetProducer(fullTreeWJetsSSCut, mass, NumWJetsSSP, ScaleFactorWJets, -1.0);
 
-  //RooDataSet wjetsDataSetHiMt("wjetsDataSetHiMt","dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeWJetsHiMtCut ) );
-  //wjetsDataSetHiMt.reduce(EventRange(1,(int)( NumWJetsHiMtP*ScaleFactorWJets)));
-  //RooDataHist wjetsDataHistHiMt("wjetsDataHistHiMt", "", RooArgSet(mass), wjetsDataSetHiMt, 1.0);
   RooDataHist wjetsDataHistHiMt = dataSetProducer(fullTreeWJetsHiMtCut, mass, NumWJetsHiMtP, ScaleFactorWJets, -1.0);
 
   /////////////////////////////////////////
@@ -408,28 +381,11 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataSet zttDataSet("zttDataSet", "dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeZttCut ) );
-
-  RooDataSet zttDataSetBias("zttDataSetBias","", RooArgSet(mass) );
-  for(int i = 0; i < zttDataSet.numEntries() ; i++){
-  const RooArgSet* massSet_i = zttDataSet.get(i);
-  RooRealVar* mass_i = (RooRealVar*)massSet_i->find("mass");
-  mass_i->setVal(mass_i->getVal()*(1.+scale_));
-  zttDataSetBias.add(RooArgSet(*mass_i));
-  }
-  zttDataSetBias.reduce(EventRange(1,(int)( NumZttP*ScaleFactorZtt)));
-  RooDataHist zttDataHist("zttDataHist", "", RooArgSet(mass), zttDataSetBias, 1.0);
+  RooDataHist zttDataHist = dataSetProducer(fullTreeZttCut, mass, NumZttP, ScaleFactorZtt, 1.0);
   RooHistPdf zttPdf("zttPdf", "", RooArgSet(mass), zttDataHist, 4);  
 
-  //RooDataSet zttDataSetSS("zttDataSetSS", "dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeZttSSCut ) );
-  //zttDataSetSS.reduce(EventRange(1,(int)( NumZttSSP*ScaleFactorZtt)));
-  //RooDataHist zttDataHistSS("zttDataHistSS", "", RooArgSet(mass), zttDataSetSS, -1.0);
   RooDataHist zttDataHistSS = dataSetProducer(fullTreeZttSSCut, mass, NumZttSSP, ScaleFactorZtt, -1.0);
 
-  //RooDataSet zttDataSetHiMt("zttDataSetHiMt", "dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeZttHiMtCut ) );
-  //zttDataSetHiMt.reduce(EventRange(1,(int)( NumZttHiMtP*ScaleFactorZtt)));
-  //cout<<"zttDataSetHiMt "<<zttDataSetHiMt.sumEntries()<<endl;
-  //RooDataHist zttDataHistHiMt("zttDataHistHiMt", "", RooArgSet(mass), zttDataSetHiMt, -1.0);
   RooDataHist zttDataHistHiMt = dataSetProducer(fullTreeZttHiMtCut, mass, NumZttHiMtP, ScaleFactorZtt, -1.0);
 
   /////////////////////////////////////////
@@ -437,21 +393,11 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  //RooDataSet ttjetsDataSet("ttjetsDataSet","dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeTTJetsCut ) );
-  //ttjetsDataSet.reduce(EventRange(1,(int)( NumTTJetsP*ScaleFactorTTJets)));
-  //RooDataHist ttjetsDataHist("ttjetsDataHist", "", RooArgSet(mass), ttjetsDataSet, 1.0);
   RooDataHist ttjetsDataHist = dataSetProducer(fullTreeTTJetsCut, mass, NumTTJetsP, ScaleFactorTTJets, 1.0);
-  RooHistPdf ttjetsPdf("ttjetsPdf", "", RooArgSet(mass), ttjetsDataHist, 4);
+  RooHistPdf ttjetsPdf("ttjetsPdf", "", RooArgSet(mass), ttjetsDataHist,4);
 
-  //RooDataSet ttjetsDataSetSS("ttjetsDataSetSS","dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeTTJetsSSCut ) );
-  //ttjetsDataSetSS.reduce(EventRange(1,(int)( NumTTJetsSSP*ScaleFactorTTJets)));
-  //RooDataHist ttjetsDataHistSS("ttjetsDataHistSS", "", RooArgSet(mass), ttjetsDataSetSS, -1.0);
   RooDataHist ttjetsDataHistSS = dataSetProducer(fullTreeTTJetsSSCut, mass, NumTTJetsSSP, ScaleFactorTTJets, -1.0);
 
-  //RooDataSet ttjetsDataSetHiMt("ttjetsDataSetHiMt","dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeTTJetsHiMtCut ) );
-  //ttjetsDataSetHiMt.reduce(EventRange(1,(int)( NumTTJetsHiMtP*ScaleFactorTTJets)));
-  //cout<<"ttjetsDataSetHiMt "<<ttjetsDataSetHiMt.sumEntries()<<endl;
-  //RooDataHist ttjetsDataHistHiMt("ttjetsDataHistHiMt", "", RooArgSet(mass), ttjetsDataSetHiMt, -1.0);
   RooDataHist ttjetsDataHistHiMt = dataSetProducer(fullTreeTTJetsHiMtCut, mass, NumTTJetsHiMtP, ScaleFactorTTJets, -1.0);
 
   /////////////////////////////////////////
@@ -459,23 +405,13 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  //RooDataSet wwDataSet("wwDataSet", "dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeWWCut ) );
-  //wwDataSet.reduce(EventRange(1,(int)( NumWWP*ScaleFactorWW)));
-  //RooDataHist wwDataHist("wwDataHist", "", RooArgSet(mass), wwDataSet, 1.0);
   RooDataHist wwDataHist = dataSetProducer(fullTreeWWCut, mass, NumWWP, ScaleFactorWW, 1.0);
-  RooHistPdf wwPdf("wwPdf", "", RooArgSet(mass), wwDataHist, 4);
+  RooHistPdf wwPdf("wwPdf", "", RooArgSet(mass), wwDataHist,4);
 
   mass.setBins( 50 );
-  //RooDataSet wwDataSetSS("wwDataSetSS", "dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeWWSSCut ) );
-  //wwDataSetSS.reduce(EventRange(1,(int)( NumWWSSP*ScaleFactorWW)));
-  //RooDataHist wwDataHistSS("wwDataHistSS", "", RooArgSet(mass), wwDataSetSS, -1.0);
   RooDataHist wwDataHistSS = dataSetProducer(fullTreeWWSSCut, mass, NumWWSSP, ScaleFactorWW, -1.0);
 
   mass.setBins( 50 );
-  //RooDataSet wwDataSetHiMt("wwDataSetHiMt", "dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeWWHiMtCut ) );
-  //wwDataSetHiMt.reduce(EventRange(1,(int)( NumWWHiMtP*ScaleFactorWW)));
-  //cout<<"wwDataSetHiMt "<<wwDataSetHiMt.sumEntries()<<endl;
-  //RooDataHist wwDataHistHiMt("wwDataHistHiMt", "", RooArgSet(mass), wwDataSetHiMt, -1.0);
   RooDataHist wwDataHistHiMt = dataSetProducer(fullTreeWWHiMtCut, mass, NumWWHiMtP, ScaleFactorWW, -1.0);
 
   /////////////////////////////////////////
@@ -483,23 +419,13 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  //RooDataSet wzDataSet("wzDataSet", "dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeWZCut ) );
-  //wzDataSet.reduce(EventRange(1,(int)( NumWZP*ScaleFactorWZ)));
-  //RooDataHist wzDataHist("wzDataHist", "", RooArgSet(mass), wzDataSet, 1.0);
   RooDataHist wzDataHist = dataSetProducer(fullTreeWZCut, mass, NumWZP, ScaleFactorWZ, 1.0);
-  RooHistPdf wzPdf("wzPdf", "", RooArgSet(mass), wzDataHist, 4);
+  RooHistPdf wzPdf("wzPdf", "", RooArgSet(mass), wzDataHist,4);
 
   mass.setBins( 50 );
-  //RooDataSet wzDataSetSS("wzDataSetSS", "dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeWZSSCut ) );
-  //wzDataSetSS.reduce(EventRange(1,(int)( NumWZSSP*ScaleFactorWZ)));
-  //RooDataHist wzDataHistSS("wzDataHistSS", "", RooArgSet(mass), wzDataSetSS, -1.0);
   RooDataHist wzDataHistSS = dataSetProducer(fullTreeWZSSCut, mass, NumWZSSP, ScaleFactorWZ, -1.0);
 
   mass.setBins( 50 );
-  //RooDataSet wzDataSetHiMt("wzDataSetHiMt", "dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeWZHiMtCut ) );
-  //wzDataSetHiMt.reduce(EventRange(1,(int)( NumWZHiMtP*ScaleFactorWZ)));
-  //cout<<"wzDataSetHiMt "<<wzDataSetHiMt.sumEntries()<<endl;
-  //RooDataHist wzDataHistHiMt("wzDataHistHiMt", "", RooArgSet(mass), wzDataSetHiMt, -1.0);
   RooDataHist wzDataHistHiMt = dataSetProducer(fullTreeWZHiMtCut, mass, NumWZHiMtP, ScaleFactorWZ, -1.0);
 
   /////////////////////////////////////////
@@ -507,23 +433,13 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  //RooDataSet zzDataSet("zzDataSet", "dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeZZCut ) );
-  //zzDataSet.reduce(EventRange(1,(int)( NumZZP*ScaleFactorZZ)));
-  //RooDataHist zzDataHist("zzDataHist", "", RooArgSet(mass), zzDataSet, 1.0);
   RooDataHist zzDataHist = dataSetProducer(fullTreeZZCut, mass, NumZZP, ScaleFactorZZ, 1.0);
-  RooHistPdf zzPdf("zzPdf", "", RooArgSet(mass), zzDataHist, 4);
+  RooHistPdf zzPdf("zzPdf", "", RooArgSet(mass), zzDataHist,4);
 
   mass.setBins( 50 );
-  //RooDataSet zzDataSetSS("zzDataSetSS", "dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeZZSSCut ) );
-  //zzDataSetSS.reduce(EventRange(1,(int)( NumZZSSP*ScaleFactorZZ)));
-  //RooDataHist zzDataHistSS("zzDataHistSS", "", RooArgSet(mass), zzDataSetSS, -1.0);
   RooDataHist zzDataHistSS = dataSetProducer(fullTreeZZSSCut, mass, NumZZSSP, ScaleFactorZZ, -1.0);
 
   mass.setBins( 50 );
-  //RooDataSet zzDataSetHiMt("zzDataSetHiMt", "dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeZZHiMtCut ) );
-  //zzDataSetHiMt.reduce(EventRange(1,(int)( NumZZHiMtP*ScaleFactorZZ)));
-  //cout<<"zzDataSetHiMt "<<zzDataSetHiMt.sumEntries()<<endl;
-  //RooDataHist zzDataHistHiMt("zzDataHistHiMt", "", RooArgSet(mass), zzDataSetHiMt, -1.0);
   RooDataHist zzDataHistHiMt = dataSetProducer(fullTreeZZHiMtCut, mass, NumZZHiMtP, ScaleFactorZZ, -1.0);
 
   //WJets from SideBand
@@ -745,21 +661,11 @@ void fitStudyTemplatesFromMC(
   //////////////////////////////////////
 
   mass.setBins( 50 );
-  //RooDataSet sgnDataSetF("sgnDataSetF", "dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeSgnCutF ) ); //change
-  //sgnDataSetF.reduce(EventRange(1,(int)( NumSgnF*ScaleFactorSgn)));
-  //RooDataHist sgnDataHistF("sgnDataHistF", "", RooArgSet(mass), sgnDataSetF, 1.0);
   RooDataHist sgnDataHistF = dataSetProducer(fullTreeSgnCutF, mass, NumSgnF, ScaleFactorSgn, 1.0);
   RooHistPdf sgnTemplatePdfF("sgnTemplatePdfF", "", RooArgSet(mass), sgnDataHistF, 4);
 
-  //RooDataSet sgnDataSetSSF("sgnDataSetSSF","dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeSgnSSCutF ) );
-  //sgnDataSetSSF.reduce(EventRange(1,(int)( NumSgnSSF*ScaleFactorSgn)));
-  //RooDataHist sgnDataHistSSF("sgnDataHistSSF", "", RooArgSet(mass), sgnDataSetSSF, -1.0);
   RooDataHist sgnDataHistSSF = dataSetProducer(fullTreeSgnSSCutF, mass, NumSgnSSF, ScaleFactorSgn, -1.0);
 
-  //RooDataSet sgnDataSetHiMtF("sgnDataSetHiMtF","dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeSgnHiMtCutF ) );
-  //sgnDataSetHiMtF.reduce(EventRange(1,(int)( NumSgnHiMtF*ScaleFactorSgn)));
-  //cout<<"sgnDataSetHiMtF "<<sgnDataSetHiMtF.sumEntries()<<endl;
-  //RooDataHist sgnDataHistHiMtF("sgnDataHistHiMtF", "", RooArgSet(mass), sgnDataSetHiMtF, -1.0);
   RooDataHist sgnDataHistHiMtF = dataSetProducer(fullTreeSgnHiMtCutF, mass, NumSgnHiMtF, ScaleFactorSgn, -1.0);
 
   delete fullTreeSgnCutF;
@@ -771,20 +677,11 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  //RooDataSet wjetsDataSetF("wjetsDataSetF", "dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeWJetsCutF ) );
-  //wjetsDataSetF.reduce(EventRange(1,(int)( NumWJetsF*ScaleFactorWJets)));
-  //RooDataHist wjetsDataHistF("wjetsDataHistF", "", RooArgSet(mass), wjetsDataSetF, 1.0);
   RooDataHist wjetsDataHistF = dataSetProducer(fullTreeWJetsCutF, mass, NumWJetsF, ScaleFactorWJets, 1.0);
   RooHistPdf wjetsHistPdfF("wjetsHistPdfF", "", RooArgSet(mass), wjetsDataHistF, 4);
 
-  //RooDataSet wjetsDataSetSSF("wjetsDataSetSSF", "dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeWJetsSSCutF ) );
-  //wjetsDataSetSSF.reduce(EventRange(1,(int)( NumWJetsSSF*ScaleFactorWJets)));
-  //RooDataHist wjetsDataHistSSF("wjetsDataHistSSF", "", RooArgSet(mass), wjetsDataSetSSF, -1.0);
   RooDataHist wjetsDataHistSSF = dataSetProducer(fullTreeWJetsSSCutF, mass, NumWJetsSSF, ScaleFactorWJets, -1.0);
 
-  //RooDataSet wjetsDataSetHiMtF("wjetsDataSetHiMtF","dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeWJetsHiMtCutF ) );
-  //wjetsDataSetHiMtF.reduce(EventRange(1,(int)( NumWJetsHiMtF*ScaleFactorWJets)));
-  //RooDataHist wjetsDataHistHiMtF("wjetsDataHistHiMtF", "", RooArgSet(mass), wjetsDataSetHiMtF, 1.0);
   RooDataHist wjetsDataHistHiMtF = dataSetProducer(fullTreeWJetsHiMtCutF, mass, NumWJetsHiMtF, ScaleFactorWJets, -1.0);
 
   delete fullTreeWJetsCutF;
@@ -796,28 +693,11 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataSet zttDataSetF("zttDataSetF", "dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeZttCutF ) );
-
-  RooDataSet zttDataSetBiasF("zttDataSetBiasF","", RooArgSet(mass) );
-  for(int i = 0; i < zttDataSetF.numEntries() ; i++){
-  const RooArgSet* massSet_i = zttDataSetF.get(i);
-  RooRealVar* mass_i = (RooRealVar*)massSet_i->find("mass");
-  mass_i->setVal(mass_i->getVal()*(1.+scale_));
-  zttDataSetBiasF.add(RooArgSet(*mass_i));
-  }
-  zttDataSetBiasF.reduce(EventRange(1,(int)( NumZttF*ScaleFactorZtt)));
-  RooDataHist zttDataHistF("zttDataHistF", "", RooArgSet(mass), zttDataSetBiasF, 1.0);
+  RooDataHist zttDataHistF = dataSetProducer(fullTreeZttCutF, mass, NumZttF, ScaleFactorZtt, 1.0);
   RooHistPdf zttPdfF("zttPdfF", "", RooArgSet(mass), zttDataHistF, 4);  
 
-  //RooDataSet zttDataSetSSF("zttDataSetSSF", "dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeZttSSCutF ) );
-  //zttDataSetSSF.reduce(EventRange(1,(int)( NumZttSSF*ScaleFactorZtt)));
-  //RooDataHist zttDataHistSSF("zttDataHistSSF", "", RooArgSet(mass), zttDataSetSSF, -1.0);
   RooDataHist zttDataHistSSF = dataSetProducer(fullTreeZttSSCutF, mass, NumZttSSF, ScaleFactorZtt, -1.0);
 
-  //RooDataSet zttDataSetHiMtF("zttDataSetHiMtF", "dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeZttHiMtCutF ) );
-  //zttDataSetHiMtF.reduce(EventRange(1,(int)( NumZttHiMtF*ScaleFactorZtt)));
-  //cout<<"zttDataSetHiMtF "<<zttDataSetHiMtF.sumEntries()<<endl;
-  //RooDataHist zttDataHistHiMtF("zttDataHistHiMtF", "", RooArgSet(mass), zttDataSetHiMtF, -1.0);
   RooDataHist zttDataHistHiMtF = dataSetProducer(fullTreeZttHiMtCutF, mass, NumZttHiMtF, ScaleFactorZtt, -1.0);
 
   delete fullTreeZttCutF;
@@ -829,21 +709,11 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  //RooDataSet ttjetsDataSetF("ttjetsDataSetF","dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeTTJetsCutF ) );
-  //ttjetsDataSetF.reduce(EventRange(1,(int)( NumTTJetsF*ScaleFactorTTJets)));
-  //RooDataHist ttjetsDataHistF("ttjetsDataHistF", "", RooArgSet(mass), ttjetsDataSetF, 1.0);
   RooDataHist ttjetsDataHistF = dataSetProducer(fullTreeTTJetsCutF, mass, NumTTJetsF, ScaleFactorTTJets, 1.0);
   RooHistPdf ttjetsPdfF("ttjetsPdfF", "", RooArgSet(mass), ttjetsDataHistF, 4);
 
-  //RooDataSet ttjetsDataSetSSF("ttjetsDataSetSSF","dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeTTJetsSSCutF ) );
-  //ttjetsDataSetSSF.reduce(EventRange(1,(int)( NumTTJetsSSF*ScaleFactorTTJets)));
-  //RooDataHist ttjetsDataHistSSF("ttjetsDataHistSSF", "", RooArgSet(mass), ttjetsDataSetSSF, -1.0);
   RooDataHist ttjetsDataHistSSF = dataSetProducer(fullTreeTTJetsSSCutF, mass, NumTTJetsSSF, ScaleFactorTTJets, -1.0);
 
-  //RooDataSet ttjetsDataSetHiMtF("ttjetsDataSetHiMtF","dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeTTJetsHiMtCutF ) );
-  //ttjetsDataSetHiMtF.reduce(EventRange(1,(int)( NumTTJetsHiMtF*ScaleFactorTTJets)));
-  //cout<<"ttjetsDataSetHiMtF "<<ttjetsDataSetHiMtF.sumEntries()<<endl;
-  //RooDataHist ttjetsDataHistHiMtF("ttjetsDataHistHiMtF", "", RooArgSet(mass), ttjetsDataSetHiMtF, -1.0);
   RooDataHist ttjetsDataHistHiMtF = dataSetProducer(fullTreeTTJetsHiMtCutF, mass, NumTTJetsHiMtF, ScaleFactorTTJets, -1.0);
 
   delete fullTreeTTJetsCutF;
@@ -855,23 +725,13 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  //RooDataSet wwDataSetF("wwDataSetF", "dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeWWCutF ) );
-  //wwDataSetF.reduce(EventRange(1,(int)( NumWWF*ScaleFactorWW)));
-  //RooDataHist wwDataHistF("wwDataHistF", "", RooArgSet(mass), wwDataSetF, 1.0);
   RooDataHist wwDataHistF = dataSetProducer(fullTreeWWCutF, mass, NumWWF, ScaleFactorWW, 1.0);
   RooHistPdf wwPdfF("wwPdfF", "", RooArgSet(mass), wwDataHistF, 4);
 
   mass.setBins( 50 );
-  //RooDataSet wwDataSetSSF("wwDataSetSSF", "dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeWWSSCutF ) );
-  //wwDataSetSSF.reduce(EventRange(1,(int)( NumWWSSF*ScaleFactorWW)));
-  //RooDataHist wwDataHistSSF("wwDataHistSSF", "", RooArgSet(mass), wwDataSetSSF, -1.0);
   RooDataHist wwDataHistSSF = dataSetProducer(fullTreeWWSSCutF, mass, NumWWSSF, ScaleFactorWW, -1.0);
 
   mass.setBins( 50 );
-  //RooDataSet wwDataSetHiMtF("wwDataSetHiMtF", "dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeWWHiMtCutF ) );
-  //wwDataSetHiMtF.reduce(EventRange(1,(int)( NumWWHiMtF*ScaleFactorWW)));
-  //cout<<"wwDataSetHiMtF "<<wwDataSetHiMtF.sumEntries()<<endl;
-  //RooDataHist wwDataHistHiMtF("wwDataHistHiMtF", "", RooArgSet(mass), wwDataSetHiMtF, -1.0);
   RooDataHist wwDataHistHiMtF = dataSetProducer(fullTreeWWHiMtCutF, mass, NumWWHiMtF, ScaleFactorWW, -1.0);
 
   delete fullTreeWWCutF;
@@ -883,23 +743,13 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  //RooDataSet wzDataSetF("wzDataSetF", "dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeWZCutF ) );
-  //wzDataSetF.reduce(EventRange(1,(int)( NumWZF*ScaleFactorWZ)));
-  //RooDataHist wzDataHistF("wzDataHistF", "", RooArgSet(mass), wzDataSetF, 1.0);
   RooDataHist wzDataHistF = dataSetProducer(fullTreeWZCutF, mass, NumWZF, ScaleFactorWZ, 1.0);
   RooHistPdf wzPdfF("wzPdfF", "", RooArgSet(mass), wzDataHistF, 4);
 
   mass.setBins( 50 );
-  //RooDataSet wzDataSetSSF("wzDataSetSSF", "dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeWZSSCutF ) );
-  //wzDataSetSSF.reduce(EventRange(1,(int)( NumWZSSF*ScaleFactorWZ)));
-  //RooDataHist wzDataHistSSF("wzDataHistSSF", "", RooArgSet(mass), wzDataSetSSF, -1.0);
   RooDataHist wzDataHistSSF = dataSetProducer(fullTreeWZSSCutF, mass, NumWZSSF, ScaleFactorWZ, -1.0);
 
   mass.setBins( 50 );
-  //RooDataSet wzDataSetHiMtF("wzDataSetHiMtF", "dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeWZHiMtCutF ) );
-  //wzDataSetHiMtF.reduce(EventRange(1,(int)( NumWZHiMtF*ScaleFactorWZ)));
-  //cout<<"wzDataSetHiMtF "<<wzDataSetHiMtF.sumEntries()<<endl;
-  //RooDataHist wzDataHistHiMtF("wzDataHistHiMtF", "", RooArgSet(mass), wzDataSetHiMtF, -1.0);
   RooDataHist wzDataHistHiMtF = dataSetProducer(fullTreeWZHiMtCutF, mass, NumWZHiMtF, ScaleFactorWZ, -1.0);
 
   delete fullTreeWZCutF;
@@ -911,23 +761,13 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  //RooDataSet zzDataSetF("zzDataSetF", "dataset for signal-pass template", RooArgSet(mass), Import( *fullTreeZZCutF ) );
-  //zzDataSetF.reduce(EventRange(1,(int)( NumZZF*ScaleFactorZZ)));
-  //RooDataHist zzDataHistF("zzDataHistF", "", RooArgSet(mass), zzDataSetF, 1.0);
   RooDataHist zzDataHistF = dataSetProducer(fullTreeZZCutF, mass, NumZZF, ScaleFactorZZ, 1.0);
   RooHistPdf zzPdfF("zzPdfF", "", RooArgSet(mass), zzDataHistF, 4);
 
   mass.setBins( 50 );
-  //RooDataSet zzDataSetSSF("zzDataSetSSF", "dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeZZSSCutF ) );
-  //zzDataSetSSF.reduce(EventRange(1,(int)( NumZZSSF*ScaleFactorZZ)));
-  //RooDataHist zzDataHistSSF("zzDataHistSSF", "", RooArgSet(mass), zzDataSetSSF, -1.0);
   RooDataHist zzDataHistSSF = dataSetProducer(fullTreeZZSSCutF, mass, NumZZSSF, ScaleFactorZZ, -1.0);
 
   mass.setBins( 50 );
-  //RooDataSet zzDataSetHiMtF("zzDataSetHiMtF", "dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeZZHiMtCutF ) );
-  //zzDataSetHiMtF.reduce(EventRange(1,(int)( NumZZHiMtF*ScaleFactorZZ)));
-  //cout<<"zzDataSetHiMtF "<<zzDataSetHiMtF.sumEntries()<<endl;
-  //RooDataHist zzDataHistHiMtF("zzDataHistHiMtF", "", RooArgSet(mass), zzDataSetHiMtF, -1.0);
   RooDataHist zzDataHistHiMtF = dataSetProducer(fullTreeZZHiMtCutF, mass, NumZZHiMtF, ScaleFactorZZ, -1.0);
 
   delete fullTreeZZCutF;
@@ -935,20 +775,20 @@ void fitStudyTemplatesFromMC(
   delete fullTreeZZHiMtCutF;
 
   //WJets from SideBand
-  /*RooPlot* massFrame2 = mass.frame();
-  dataDataHistHiMtF.plotOn(massFrame2,MarkerColor(kRed));
+  //RooPlot* massFrame2 = mass.frame();
+  //dataDataHistHiMtF.plotOn(massFrame2,MarkerColor(kRed));
   dataDataHistHiMtF.add(sgnDataHistHiMtF);
   dataDataHistHiMtF.add(zttDataHistHiMtF);
   dataDataHistHiMtF.add(ttjetsDataHistHiMtF);
   dataDataHistHiMtF.add(wwDataHistHiMtF);
   dataDataHistHiMtF.add(wzDataHistHiMtF);
   dataDataHistHiMtF.add(zzDataHistHiMtF);
-  dataDataHistHiMtF.plotOn(massFrame2,MarkerColor(kBlue));
+  //dataDataHistHiMtF.plotOn(massFrame2,MarkerColor(kBlue));
   float exWJetsF = NumWJetsF/NumWJetsHiMtF;
   cout<<"exWJetsF "<<exWJetsF<<endl;
   RooDataHist dataDataHistHiMtScaledF("dataDataHistHiMtScaledF", "", RooArgSet(mass), dataDataHistHiMtF, exWJetsF);
-  dataDataHistHiMtScaledF.plotOn(massFrame2,MarkerColor(kViolet));
-  RooHistPdf WJetsDataDrivenHistPdfF("WJetsDataDrivenHistPdfF", "", RooArgSet(mass), dataDataHistHiMtScaledF, 4);*/
+  //dataDataHistHiMtScaledF.plotOn(massFrame2,MarkerColor(kViolet));
+  RooHistPdf WJetsDataDrivenHistPdfF("WJetsDataDrivenHistPdfF", "", RooArgSet(mass), dataDataHistHiMtScaledF, 4);
 
   // QCD
   dataDataHistSSF.add(sgnDataHistSSF);
@@ -977,7 +817,7 @@ void fitStudyTemplatesFromMC(
   // Multiply constraint with p.d.f
   RooProdPdf QCDHistPdfF_C("QCDHistPdfF_C","QCD model with constraint",RooArgSet(QCDHistPdfF,fconstraint));
   RooProdPdf QCDHistPdfP_C("QCDHistPdfP_C","QCD model with constraint",RooArgSet(QCDHistPdfP,fconstraint));
-  //RooProdPdf WJetsHistPdfF_C("WJetsHistPdfF_C","WJets model with constraint",RooArgSet(WJetsDataDrivenHistPdfF,fconstraintW));
+  RooProdPdf WJetsHistPdfF_C("WJetsHistPdfF_C","WJets model with constraint",RooArgSet(WJetsDataDrivenHistPdfF,fconstraintW));
   RooProdPdf WJetsHistPdfP_C("WJetsHistPdfP_C","WJets model with constraint",RooArgSet(WJetsDataDrivenHistPdfP,fconstraintW));
 
   DataDataHistP.reset();
@@ -1026,7 +866,7 @@ void fitStudyTemplatesFromMC(
   RooRealVar CoeffWZF("CoeffWZF","",0,10000000);
   RooRealVar CoeffZZF("CoeffZZF","",0,10000000);
 
-  RooAddPdf DataModelF("DataModelF", "", RooArgList(sgnTemplatePdfF,zttPdfF,wjetsHistPdfF,ttjetsPdfF,QCDHistPdfF_C,wwPdfF,wzPdfF,zzPdfF), RooArgList(CoeffSgnF/*DataNumSgnP*/,CoeffZttF,CoeffWJetsF,CoeffTTJetsF,CoeffQCDF,CoeffWWF,CoeffWZF,CoeffZZF));
+  RooAddPdf DataModelF("DataModelF", "", RooArgList(sgnTemplatePdfF,zttPdfF,WJetsHistPdfF_C,ttjetsPdfF,QCDHistPdfF_C,wwPdfF,wzPdfF,zzPdfF), RooArgList(CoeffSgnF/*DataNumSgnP*/,CoeffZttF,CoeffWJetsF,CoeffTTJetsF,CoeffQCDF,CoeffWWF,CoeffWZF,CoeffZZF));
 
   mass.setBins(nBins_);
 
@@ -1074,7 +914,7 @@ void fitStudyTemplatesFromMC(
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), LineColor(kBlack),Name("modelF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("sgnTemplatePdfF"), LineColor(kBlue), LineStyle(kSolid),Name("signal onlyF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("zttPdfF"), LineColor(kRed), LineStyle(kSolid),Name("ZttF"));
-  DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("wjetsHistPdfF"), LineColor(kGreen), LineStyle(kSolid),Name("WJetsF"));
+  DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("WJetsDataDrivenHistPdfF"), LineColor(kGreen), LineStyle(kSolid),Name("WJetsF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("ttjetsPdfF"), LineColor(kMagenta), LineStyle(kSolid),Name("TTJetsF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("QCDHistPdfF"), LineColor(kOrange), LineStyle(kSolid),Name("QCDF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("wwPdfF"), LineColor(kViolet), LineStyle(kSolid),Name("WWF"));
@@ -1093,7 +933,7 @@ void fitStudyTemplatesFromMC(
 
   cPass->cd();
   DataFrameP->Draw();
-  TLegend *leg1 = new TLegend(0.6,0.6,0.9,0.9);
+  TLegend *leg1 = new TLegend(0.55,0.55,0.8,0.8);
   leg1->SetFillColor(kWhite);
   leg1->SetLineColor(kWhite);
   leg1->AddEntry("dataP","Data", "P");
@@ -1122,7 +962,7 @@ void fitStudyTemplatesFromMC(
 
   cFail->cd();
   DataFrameF->Draw();
-  TLegend *leg2 = new TLegend(0.6,0.6,0.9,0.9);
+  TLegend *leg2 = new TLegend(0.55,0.55,0.8,0.8);
   leg2->SetFillColor(kWhite);
   leg2->SetLineColor(kWhite);
   leg2->AddEntry("dataF","Data", "P");
@@ -1186,7 +1026,7 @@ void fitStudyTemplatesFromMC(
 
 void calcutateFitClosure(){
 
-	/*cout<<"passingIsoLooseMuonVetoLoose"<<endl;
+	cout<<"passingIsoLooseMuonVetoLoose"<<endl;
 	fitStudyTemplatesFromMC("muToTau","passingIsoLooseMuonVetoLoose","abseta<1.2",50,0.6,0.6);
 	fitStudyTemplatesFromMC("muToTau","passingIsoLooseMuonVetoLoose","abseta>1.2 && abseta<1.7",50,1.45,0.25);
 	fitStudyTemplatesFromMC("muToTau","passingIsoLooseMuonVetoLoose","abseta>1.7",50,2.0,0.3);
@@ -1199,7 +1039,7 @@ void calcutateFitClosure(){
 	cout<<"passingIsoLooseMuonVetoTight"<<endl;
 	fitStudyTemplatesFromMC("muToTau","passingIsoLooseMuonVetoTight","abseta<1.2",50,0.6,0.6);
 	fitStudyTemplatesFromMC("muToTau","passingIsoLooseMuonVetoTight","abseta>1.2 && abseta<1.7",50,1.45,0.25);
-	fitStudyTemplatesFromMC("muToTau","passingIsoLooseMuonVetoTight","abseta>1.7",50,2.0,0.3);*/
+	fitStudyTemplatesFromMC("muToTau","passingIsoLooseMuonVetoTight","abseta>1.7",50,2.0,0.3);
 
 	cout<<"passingIsoLooseMuonVetoLoose2"<<endl;
 	fitStudyTemplatesFromMC("muToTau","passingIsoLooseMuonVetoLoose2","abseta<1.2",50,0.6,0.6);
