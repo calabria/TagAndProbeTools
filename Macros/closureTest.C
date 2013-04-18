@@ -51,7 +51,7 @@
 using namespace std;
 using namespace RooFit;
 
-RooDataHist dataSetProducer(TTree * fullTreeSgnCut, RooRealVar mass, float NumSgnP, float ScaleFactorSgn, float weight){
+RooDataHist dataSetProducer(TTree * fullTreeSgnCut, RooRealVar mass, float ScaleFactorSgn, float weight){
 
 	TH1F* hMass = new TH1F("hMass","",50,70,120); 
   	if(ScaleFactorSgn != 1) {
@@ -64,6 +64,21 @@ RooDataHist dataSetProducer(TTree * fullTreeSgnCut, RooRealVar mass, float NumSg
   	RooDataHist sgnDataHist("sgnDataHist", "", RooArgSet(mass), hMass, weight);
 
 	return sgnDataHist;
+
+}
+
+float getCorrectedEntries(TTree * fullTreeSgnCut, RooRealVar mass, float ScaleFactorSgn, int a = 1, int b = 50){
+
+	TH1F* hMass = new TH1F("hMass","",50,70,120);
+  	if(ScaleFactorSgn != 1) {
+  		fullTreeSgnCut->Draw("mass>>hMass","tag_puMCWeightRun2012");
+		hMass->Scale(ScaleFactorSgn*0.987883333*0.985533333*0.9548436313);
+	}
+	else fullTreeSgnCut->Draw("mass>>hMass");
+        //cout<<"sgnDataSet "<<fullTreeSgnCut->GetEntries()<<endl;
+        //cout<<"scaled "<<hMass->Integral(0,51)<<endl;
+
+	return hMass->Integral(a,b);
 
 }
 
@@ -158,9 +173,9 @@ void fitStudyTemplatesFromMC(
   TH1F* hSP          = new TH1F("hSP","",1,0,150);
 
   fullTreeSgn->Draw("mass>>hS",Form("tag_puMCWeightRun2012*(%s && mass>%f && mass<%f && mcTrue && pair_charge==0 && tag_Mt < 40 && tag_IsoMu24_eta2p1 && tag_triggerBitSingleMu > 0.5 )",bin_.c_str(),xLow_,xHigh_));
-  double SGNtrue = hS->Integral(0,151);
+  double SGNtrue = hS->Integral(0,2);
   fullTreeSgn->Draw("mass>>hSP",Form("tag_puMCWeightRun2012*(%s && %s>=%f && mass>%f && mass<%f && mcTrue && pair_charge==0 && tag_Mt < 40 && tag_IsoMu24_eta2p1 && tag_triggerBitSingleMu > 0.5 )",bin_.c_str(),category_.c_str(),cutValue_,xLow_,xHigh_));
-  double SGNtruePass = hSP->Integral(0,151);
+  double SGNtruePass = hSP->Integral(0,2);
 
   double McTruthEff    = SGNtruePass/SGNtrue;
   double BinomialError = TMath::Sqrt(SGNtruePass/SGNtrue*(1-SGNtruePass/SGNtrue)/SGNtrue);
@@ -174,7 +189,7 @@ void fitStudyTemplatesFromMC(
   std::cout<<"Processing Passing, OS, Low MT"<<std::endl;
 
   TTree* fullTreeSgnCut = fullTreeSgn->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
-  //TTree* fullTreeSgnCutTemp = fullTreeSgn->CopyTree( Form("(mcTrue && %s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
+  TTree* fullTreeSgnCutTemp = fullTreeSgn->CopyTree( Form("(mcTrue && %s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeWJetsCut = fullTreeWJets->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeZttCut = fullTreeZtt->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeTTJetsCut = fullTreeTTJets->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
@@ -183,39 +198,11 @@ void fitStudyTemplatesFromMC(
   TTree* fullTreeZZCut = fullTreeZZ->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeDataCut = fullTreeData->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
 
-
-  TH1F* hMet = new TH1F("hMet","",1,0,1500); 
-  fullTreeDataCut->Draw("event_met_pfmet>>hMet");
-  //float NumDataP = hMet->Integral();
-  hMet->Reset();
-  fullTreeSgnCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumSgnP = hMet->Integral();
-  hMet->Reset();
-  fullTreeWJetsCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumWJetsP = hMet->Integral();
-  hMet->Reset();
-  fullTreeZttCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumZttP = hMet->Integral();
-  hMet->Reset();
-  fullTreeTTJetsCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumTTJetsP = hMet->Integral();
-  hMet->Reset();
-  fullTreeWWCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumWWP = hMet->Integral();
-  hMet->Reset();
-  fullTreeWZCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumWZP = hMet->Integral();
-  hMet->Reset();
-  fullTreeZZCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumZZP = hMet->Integral();
-  hMet->Reset();
-
   std::cout<<"Processing Passing, SS, Low MT"<<std::endl;
 
   //SS
   TTree* fullTreeDataSSCut = fullTreeData->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
   TTree* fullTreeSgnSSCut = fullTreeSgn->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
-  //TTree* fullTreeSgnSSCutTemp = fullTreeSgn->CopyTree( Form("(mcTrue && %s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
   TTree* fullTreeWJetsSSCut = fullTreeWJets->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
   TTree* fullTreeZttSSCut = fullTreeZtt->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
   TTree* fullTreeTTJetsSSCut = fullTreeTTJets->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
@@ -223,71 +210,17 @@ void fitStudyTemplatesFromMC(
   TTree* fullTreeWZSSCut = fullTreeWZ->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
   TTree* fullTreeZZSSCut = fullTreeZZ->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
 
-
-  fullTreeDataSSCut->Draw("event_met_pfmet>>hMet");
-  //float NumDataSSP = hMet->Integral();
-  hMet->Reset();
-  fullTreeSgnSSCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumSgnSSP = hMet->Integral();
-  hMet->Reset();
-  fullTreeWJetsSSCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumWJetsSSP = hMet->Integral();
-  hMet->Reset();
-  fullTreeZttSSCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumZttSSP = hMet->Integral();
-  hMet->Reset();
-  fullTreeTTJetsSSCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumTTJetsSSP = hMet->Integral();
-  hMet->Reset();
-  fullTreeWWSSCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumWWSSP = hMet->Integral();
-  hMet->Reset();
-  fullTreeWZSSCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumWZSSP = hMet->Integral();
-  hMet->Reset();
-  fullTreeZZSSCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumZZSSP = hMet->Integral();
-  hMet->Reset();
-
   std::cout<<"Processing Passing, OS, High MT"<<std::endl;
 
   //High MT
   TTree* fullTreeDataHiMtCut = fullTreeData->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeSgnHiMtCut = fullTreeSgn->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
-  //TTree* fullTreeSgnHiMtCutTemp = fullTreeSgn->CopyTree( Form("(mcTrue && %s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeWJetsHiMtCut = fullTreeWJets->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeZttHiMtCut = fullTreeZtt->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeTTJetsHiMtCut = fullTreeTTJets->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeWWHiMtCut = fullTreeWW->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeWZHiMtCut = fullTreeWZ->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeZZHiMtCut = fullTreeZZ->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
-
-  fullTreeDataHiMtCut->Draw("event_met_pfmet>>hMet");
-  float NumDataHiMtP = hMet->Integral();
-  cout<<"NumDataHiMtP "<<NumDataHiMtP<<endl;
-  hMet->Reset();
-  fullTreeSgnHiMtCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumSgnHiMtP = hMet->Integral();
-  cout<<"NumSgnHiMtP "<<NumSgnHiMtP<<endl;
-  hMet->Reset();
-  fullTreeWJetsHiMtCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumWJetsHiMtP = hMet->Integral();
-  hMet->Reset();
-  fullTreeZttHiMtCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumZttHiMtP = hMet->Integral();
-  hMet->Reset();
-  fullTreeTTJetsHiMtCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumTTJetsHiMtP = hMet->Integral();
-  hMet->Reset();
-  fullTreeWWHiMtCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumWWHiMtP = hMet->Integral();
-  hMet->Reset();
-  fullTreeWZHiMtCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumWZHiMtP = hMet->Integral();
-  hMet->Reset();
-  fullTreeZZHiMtCut->Draw("event_met_pfmet>>hMet","tag_puMCWeightRun2012");
-  float NumZZHiMtP = hMet->Integral();
-  hMet->Reset();
 
   //Normalization passing
 
@@ -302,25 +235,12 @@ void fitStudyTemplatesFromMC(
   float SigmaWZ = 33.85;
   float SigmaZZ = 8.297;
 
-  //float readEventsWJets = 76102995 -4*115419;
   float ScaleFactorWJets = Lumi_/(readEventsWJets/SigmaWJets);
-
-  //float readEventsZtt = 19937479;
   float ScaleFactorZtt = Lumi_/(readEventsZtt/SigmaZtt);
-
-  //float readEventsTTJets = 6923750 -2*13847;
   float ScaleFactorTTJets = Lumi_/(readEventsTTJets/SigmaTTJets);
-
-  //float readEventsSgn = 29743564 - 6*97638;
   float ScaleFactorSgn = Lumi_/(readEventsSgn/SigmaSgn);
-
-  //float readEventsWW = 10000431 - 20000;
   float ScaleFactorWW = Lumi_/(readEventsWW/SigmaWW);
-
-  //float readEventsWZ = 10000283;
   float ScaleFactorWZ = Lumi_/(readEventsWZ/SigmaWZ);
-
-  //float readEventsZZ = 9799908 -2*19599;
   float ScaleFactorZZ = Lumi_/(readEventsZZ/SigmaZZ);
 
   std::cout<<"WJets Ztt TTJets Sgn WW WZ ZZ"<<std::endl;
@@ -344,7 +264,6 @@ void fitStudyTemplatesFromMC(
   RooDataSet DataDataSetP("DataDataSetP", "dataset for Data pass", RooArgSet(mass), Import( *fullTreeDataCut ) );
   //std::cout << "data dataset Pass " << DataDataSetP.numEntries() << "  " << std::endl;
   RooDataHist DataDataHistP("DataDataHistP", "", RooArgSet(mass), DataDataSetP, 1.0);
-  //float nPass = DataDataHistP.sum(false);
 
   RooDataSet dataDataSetSS("dataDataSetSS","dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeDataSSCut ) );
   RooDataHist dataDataHistSS("dataDataHistSS", "", RooArgSet(mass), dataDataSetSS, 1.0);
@@ -357,90 +276,102 @@ void fitStudyTemplatesFromMC(
   //////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist sgnDataHist = dataSetProducer(fullTreeSgnCut, mass, NumSgnP, ScaleFactorSgn, 1.0);
-  RooHistPdf sgnTemplatePdf("sgnTemplatePdf", "", RooArgSet(mass), sgnDataHist,4);
+  RooDataHist sgnDataHist = dataSetProducer(fullTreeSgnCut, mass, ScaleFactorSgn, 1.0);
+  RooHistPdf sgnTemplatePdf("sgnTemplatePdf", "", RooArgSet(mass), sgnDataHist, 4);
+  float numSgnScaled = getCorrectedEntries(fullTreeSgnCut, mass, ScaleFactorSgn);
+  cout<<"SgnSumEntries "<<numSgnScaled<<endl;
+  RooDataHist sgnDataHistTemp = dataSetProducer(fullTreeSgnCutTemp, mass, ScaleFactorSgn, 1.0);
+  RooHistPdf sgnTemplatePdfTemp("sgnTemplatePdfTemp", "", RooArgSet(mass), sgnDataHistTemp, 4);
+  float numSgnScaledTemp = getCorrectedEntries(fullTreeSgnCutTemp, mass, ScaleFactorSgn);
 
-  RooDataHist sgnDataHistSS = dataSetProducer(fullTreeSgnSSCut, mass, NumSgnSSP, ScaleFactorSgn, -1.0);
+  RooDataHist sgnDataHistSS = dataSetProducer(fullTreeSgnSSCut, mass, ScaleFactorSgn, -1.0);
 
-  RooDataHist sgnDataHistHiMt = dataSetProducer(fullTreeSgnHiMtCut, mass, NumSgnHiMtP, ScaleFactorSgn, -1.0);
+  RooDataHist sgnDataHistHiMt = dataSetProducer(fullTreeSgnHiMtCut, mass, ScaleFactorSgn, -1.0);
 
   /////////////////////////////////////////
   //    Wjets
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist wjetsDataHist = dataSetProducer(fullTreeWJetsCut, mass, NumWJetsP, ScaleFactorWJets, 1.0);
+  RooDataHist wjetsDataHist = dataSetProducer(fullTreeWJetsCut, mass, ScaleFactorWJets, 1.0);
   RooHistPdf wjetsHistPdf("wjetsHistPdf", "", RooArgSet(mass), wjetsDataHist, 4);
+  float numWJetsScaled = getCorrectedEntries(fullTreeWJetsCut, mass, ScaleFactorWJets,0,51);
 
-  RooDataHist wjetsDataHistSS = dataSetProducer(fullTreeWJetsSSCut, mass, NumWJetsSSP, ScaleFactorWJets, -1.0);
+  RooDataHist wjetsDataHistSS = dataSetProducer(fullTreeWJetsSSCut, mass, ScaleFactorWJets, -1.0);
 
-  RooDataHist wjetsDataHistHiMt = dataSetProducer(fullTreeWJetsHiMtCut, mass, NumWJetsHiMtP, ScaleFactorWJets, -1.0);
+  RooDataHist wjetsDataHistHiMt = dataSetProducer(fullTreeWJetsHiMtCut, mass, ScaleFactorWJets, -1.0);
+  float numWJetsScaledHiMt = getCorrectedEntries(fullTreeWJetsHiMtCut, mass, ScaleFactorWJets,0,51);
 
   /////////////////////////////////////////
   //    Ztautau
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist zttDataHist = dataSetProducer(fullTreeZttCut, mass, NumZttP, ScaleFactorZtt, 1.0);
+  RooDataHist zttDataHist = dataSetProducer(fullTreeZttCut, mass, ScaleFactorZtt, 1.0);
   RooHistPdf zttPdf("zttPdf", "", RooArgSet(mass), zttDataHist, 4);  
+  float numZttScaled = getCorrectedEntries(fullTreeZttCut, mass, ScaleFactorZtt);
 
-  RooDataHist zttDataHistSS = dataSetProducer(fullTreeZttSSCut, mass, NumZttSSP, ScaleFactorZtt, -1.0);
+  RooDataHist zttDataHistSS = dataSetProducer(fullTreeZttSSCut, mass, ScaleFactorZtt, -1.0);
 
-  RooDataHist zttDataHistHiMt = dataSetProducer(fullTreeZttHiMtCut, mass, NumZttHiMtP, ScaleFactorZtt, -1.0);
+  RooDataHist zttDataHistHiMt = dataSetProducer(fullTreeZttHiMtCut, mass, ScaleFactorZtt, -1.0);
 
   /////////////////////////////////////////
   //    TTJets
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist ttjetsDataHist = dataSetProducer(fullTreeTTJetsCut, mass, NumTTJetsP, ScaleFactorTTJets, 1.0);
+  RooDataHist ttjetsDataHist = dataSetProducer(fullTreeTTJetsCut, mass, ScaleFactorTTJets, 1.0);
   RooHistPdf ttjetsPdf("ttjetsPdf", "", RooArgSet(mass), ttjetsDataHist,4);
+  float numTTJetsScaled = getCorrectedEntries(fullTreeTTJetsCut, mass, ScaleFactorTTJets);
 
-  RooDataHist ttjetsDataHistSS = dataSetProducer(fullTreeTTJetsSSCut, mass, NumTTJetsSSP, ScaleFactorTTJets, -1.0);
+  RooDataHist ttjetsDataHistSS = dataSetProducer(fullTreeTTJetsSSCut, mass, ScaleFactorTTJets, -1.0);
 
-  RooDataHist ttjetsDataHistHiMt = dataSetProducer(fullTreeTTJetsHiMtCut, mass, NumTTJetsHiMtP, ScaleFactorTTJets, -1.0);
+  RooDataHist ttjetsDataHistHiMt = dataSetProducer(fullTreeTTJetsHiMtCut, mass, ScaleFactorTTJets, -1.0);
 
   /////////////////////////////////////////
   //    WW
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist wwDataHist = dataSetProducer(fullTreeWWCut, mass, NumWWP, ScaleFactorWW, 1.0);
+  RooDataHist wwDataHist = dataSetProducer(fullTreeWWCut, mass, ScaleFactorWW, 1.0);
   RooHistPdf wwPdf("wwPdf", "", RooArgSet(mass), wwDataHist,4);
+  float numWWScaled = getCorrectedEntries(fullTreeWWCut, mass, ScaleFactorWW);
 
   mass.setBins( 50 );
-  RooDataHist wwDataHistSS = dataSetProducer(fullTreeWWSSCut, mass, NumWWSSP, ScaleFactorWW, -1.0);
+  RooDataHist wwDataHistSS = dataSetProducer(fullTreeWWSSCut, mass, ScaleFactorWW, -1.0);
 
   mass.setBins( 50 );
-  RooDataHist wwDataHistHiMt = dataSetProducer(fullTreeWWHiMtCut, mass, NumWWHiMtP, ScaleFactorWW, -1.0);
+  RooDataHist wwDataHistHiMt = dataSetProducer(fullTreeWWHiMtCut, mass, ScaleFactorWW, -1.0);
 
   /////////////////////////////////////////
   //    WZ
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist wzDataHist = dataSetProducer(fullTreeWZCut, mass, NumWZP, ScaleFactorWZ, 1.0);
+  RooDataHist wzDataHist = dataSetProducer(fullTreeWZCut, mass, ScaleFactorWZ, 1.0);
   RooHistPdf wzPdf("wzPdf", "", RooArgSet(mass), wzDataHist,4);
+  float numWZScaled = getCorrectedEntries(fullTreeWZCut, mass, ScaleFactorWZ);
 
   mass.setBins( 50 );
-  RooDataHist wzDataHistSS = dataSetProducer(fullTreeWZSSCut, mass, NumWZSSP, ScaleFactorWZ, -1.0);
+  RooDataHist wzDataHistSS = dataSetProducer(fullTreeWZSSCut, mass, ScaleFactorWZ, -1.0);
 
   mass.setBins( 50 );
-  RooDataHist wzDataHistHiMt = dataSetProducer(fullTreeWZHiMtCut, mass, NumWZHiMtP, ScaleFactorWZ, -1.0);
+  RooDataHist wzDataHistHiMt = dataSetProducer(fullTreeWZHiMtCut, mass, ScaleFactorWZ, -1.0);
 
   /////////////////////////////////////////
   //    ZZ
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist zzDataHist = dataSetProducer(fullTreeZZCut, mass, NumZZP, ScaleFactorZZ, 1.0);
+  RooDataHist zzDataHist = dataSetProducer(fullTreeZZCut, mass, ScaleFactorZZ, 1.0);
   RooHistPdf zzPdf("zzPdf", "", RooArgSet(mass), zzDataHist,4);
+  float numZZScaled = getCorrectedEntries(fullTreeZZCut, mass, ScaleFactorZZ);
 
   mass.setBins( 50 );
-  RooDataHist zzDataHistSS = dataSetProducer(fullTreeZZSSCut, mass, NumZZSSP, ScaleFactorZZ, -1.0);
+  RooDataHist zzDataHistSS = dataSetProducer(fullTreeZZSSCut, mass, ScaleFactorZZ, -1.0);
 
   mass.setBins( 50 );
-  RooDataHist zzDataHistHiMt = dataSetProducer(fullTreeZZHiMtCut, mass, NumZZHiMtP, ScaleFactorZZ, -1.0);
+  RooDataHist zzDataHistHiMt = dataSetProducer(fullTreeZZHiMtCut, mass, ScaleFactorZZ, -1.0);
 
   //WJets from SideBand
   //RooPlot* massFrame1 = mass.frame();
@@ -452,12 +383,15 @@ void fitStudyTemplatesFromMC(
   dataDataHistHiMt.add(wzDataHistHiMt);
   dataDataHistHiMt.add(zzDataHistHiMt);
   //dataDataHistHiMt.plotOn(massFrame1,MarkerColor(kBlue));
-  float exWJetsP = NumWJetsP/NumWJetsHiMtP;
+  float exWJetsP = numWJetsScaled/numWJetsScaledHiMt;
   cout<<"exWJetsP "<<exWJetsP<<endl;
   RooDataHist dataDataHistHiMtScaled("dataDataHistHiMtScaled", "", RooArgSet(mass), dataDataHistHiMt, exWJetsP);
+  float numWJetsDataDriven = dataDataHistHiMtScaled.sumEntries();
   //dataDataHistHiMtScaled.plotOn(massFrame1,MarkerColor(kViolet));
   //massFrame1->Draw();
   RooHistPdf WJetsDataDrivenHistPdfP("WJetsDataDrivenHistPdfP", "", RooArgSet(mass), dataDataHistHiMtScaled, 4);
+  RooDataSet WJetsPseudoDataSet = *(wjetsHistPdf.generate(mass,(int)numWJetsDataDriven));
+  RooDataHist WJetsPseudoDataHist("WJetsPseudoDataHist", "", RooArgSet(mass), WJetsPseudoDataSet, 4);
 
   // QCD
   dataDataHistSS.add(sgnDataHistSS);
@@ -468,9 +402,10 @@ void fitStudyTemplatesFromMC(
   dataDataHistSS.add(wzDataHistSS);
   dataDataHistSS.add(zzDataHistSS);
   RooHistPdf QCDHistPdfP("QCDHistPdfP", "", RooArgSet(mass), dataDataHistSS, 4);
+  float numQCDDataDriven = dataDataHistSS.sumEntries();
 
   delete fullTreeSgnCut;
-  //delete fullTreeSgnCutTemp;
+  delete fullTreeSgnCutTemp;
   delete fullTreeWJetsCut;
   delete fullTreeZttCut;
   delete fullTreeTTJetsCut;
@@ -480,7 +415,6 @@ void fitStudyTemplatesFromMC(
   delete fullTreeDataCut;
 
   delete fullTreeSgnSSCut;
-  //delete fullTreeSgnSSCutTemp;
   delete fullTreeWJetsSSCut;
   delete fullTreeZttSSCut;
   delete fullTreeTTJetsSSCut;
@@ -490,7 +424,6 @@ void fitStudyTemplatesFromMC(
   delete fullTreeDataSSCut;
 
   delete fullTreeSgnHiMtCut;
-  //delete fullTreeSgnHiMtCutTemp;
   delete fullTreeWJetsHiMtCut;
   delete fullTreeZttHiMtCut;
   delete fullTreeTTJetsHiMtCut;
@@ -508,7 +441,7 @@ void fitStudyTemplatesFromMC(
   // Create trees with cuts: failing
 
   TTree* fullTreeSgnCutF = fullTreeSgn->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
-  //TTree* fullTreeSgnCutFTemp = fullTreeSgn->CopyTree( Form("(mcTrue && %s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
+  TTree* fullTreeSgnCutFTemp = fullTreeSgn->CopyTree( Form("(mcTrue && %s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeWJetsCutF = fullTreeWJets->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeZttCutF = fullTreeZtt->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeTTJetsCutF = fullTreeTTJets->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
@@ -517,41 +450,11 @@ void fitStudyTemplatesFromMC(
   TTree* fullTreeZZCutF = fullTreeZZ->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeDataCutF = fullTreeData->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
 
-
-  TH1F* hMetF = new TH1F("hMetF","",1,0,1500); 
-  fullTreeDataCutF->Draw("event_met_pfmet>>hMetF");
-  float NumDataF = hMetF->Integral();
-  cout<<"NumDataF "<<NumDataF<<endl;
-  hMetF->Reset();
-  fullTreeSgnCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumSgnF = hMetF->Integral();
-  cout<<"NumSgnF "<<NumSgnF<<endl;
-  hMetF->Reset();
-  fullTreeWJetsCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumWJetsF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeZttCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumZttF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeTTJetsCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumTTJetsF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeWWCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumWWF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeWZCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumWZF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeZZCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumZZF = hMetF->Integral();
-  hMetF->Reset();
-
   std::cout<<"Processing Failing, SS, Low MT"<<std::endl;
 
   //SS
   TTree* fullTreeDataSSCutF = fullTreeData->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
   TTree* fullTreeSgnSSCutF = fullTreeSgn->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
-  //TTree* fullTreeSgnSSCutFTemp = fullTreeSgn->CopyTree( Form("(mcTrue && %s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
   TTree* fullTreeWJetsSSCutF = fullTreeWJets->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
   TTree* fullTreeZttSSCutF = fullTreeZtt->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
   TTree* fullTreeTTJetsSSCutF = fullTreeTTJets->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
@@ -559,76 +462,17 @@ void fitStudyTemplatesFromMC(
   TTree* fullTreeWZSSCutF = fullTreeWZ->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
   TTree* fullTreeZZSSCutF = fullTreeZZ->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutSS_.c_str()) );
 
-
-  fullTreeDataSSCutF->Draw("event_met_pfmet>>hMetF");
-  float NumDataSSF = hMetF->Integral();
-  cout<<"NumDataSSF "<<NumDataSSF<<endl;
-  hMetF->Reset();
-  fullTreeSgnSSCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumSgnSSF = hMetF->Integral();
-  cout<<"NumSgnSSF "<<NumSgnSSF<<endl;
-  hMetF->Reset();
-  fullTreeWJetsSSCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumWJetsSSF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeZttSSCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumZttSSF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeTTJetsSSCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumTTJetsSSF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeWWSSCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumWWSSF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeWZSSCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumWZSSF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeZZSSCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumZZSSF = hMetF->Integral();
-  hMetF->Reset();
-
   std::cout<<"Processing Failing, OS, High MT"<<std::endl;
 
   //High MT
   TTree* fullTreeDataHiMtCutF = fullTreeData->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeSgnHiMtCutF = fullTreeSgn->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
-  //TTree* fullTreeSgnHiMtCutFTemp = fullTreeSgn->CopyTree( Form("(mcTrue && %s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeWJetsHiMtCutF = fullTreeWJets->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeZttHiMtCutF = fullTreeZtt->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeTTJetsHiMtCutF = fullTreeTTJets->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeWWHiMtCutF = fullTreeWW->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeWZHiMtCutF = fullTreeWZ->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
   TTree* fullTreeZZHiMtCutF = fullTreeZZ->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCutHiMt_.c_str()) );
-
-
-  fullTreeDataHiMtCutF->Draw("event_met_pfmet>>hMetF");
-  float NumDataHiMtF = hMetF->Integral();
-  cout<<"NumDataHiMtF "<<NumDataHiMtF<<" fullTreeDataHiMtCutF "<<fullTreeDataHiMtCutF->GetEntries()<<endl;
-  hMetF->Reset();
-  fullTreeSgnHiMtCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumSgnHiMtF = hMetF->Integral();
-  cout<<"NumSgnHiMtF "<<NumSgnHiMtF<<" fullTreeSgnHiMtCutF "<<fullTreeSgnHiMtCutF->GetEntries()<<endl;
-  hMetF->Reset();
-  fullTreeWJetsHiMtCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumWJetsHiMtF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeZttHiMtCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumZttHiMtF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeTTJetsHiMtCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumTTJetsHiMtF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeWWHiMtCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumWWHiMtF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeWZHiMtCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumWZHiMtF = hMetF->Integral();
-  hMetF->Reset();
-  fullTreeZZHiMtCutF->Draw("event_met_pfmet>>hMetF","tag_puMCWeightRun2012");
-  float NumZZHiMtF = hMetF->Integral();
-  hMetF->Reset();;
-
-  delete hMet;
 
   //Normalization failing
 
@@ -638,19 +482,12 @@ void fitStudyTemplatesFromMC(
   //    Data
   //////////////////////////////////////
 
-  //RooDataSet DataDataSetF("DataDataSetF", "dataset for Data fail", RooArgSet(mass), Import( *fullTreeDataCutF ) );
-  //std::cout << "data dataset Fail " << DataDataSetF.numEntries() << "  " << std::endl;
-  //RooDataHist DataDataHistF("DataDataHistF", "", RooArgSet(mass), DataDataSetF, 1.0);
-  RooDataHist DataDataHistF = dataSetProducer(fullTreeDataCutF, mass, 1.0, 1.0, 1.0);
-  //float nFail = DataDataHistF.sum(false);
+  mass.setBins( 50 );
+  RooDataHist DataDataHistF = dataSetProducer(fullTreeDataCutF, mass, 1.0, 1.0);
 
-  //RooDataSet dataDataSetSSF("dataDataSetSSF","dataset for signal-pass template SS", RooArgSet(mass), Import( *fullTreeDataSSCutF ) );
-  //RooDataHist dataDataHistSSF("dataDataHistSSF", "", RooArgSet(mass), dataDataSetSSF, 1.0);
-  RooDataHist dataDataHistSSF = dataSetProducer(fullTreeDataSSCutF, mass, 1.0, 1.0, 1.0);
+  RooDataHist dataDataHistSSF = dataSetProducer(fullTreeDataSSCutF, mass, 1.0, 1.0);
 
-  //RooDataSet dataDataSetHiMtF("dataDataSetHiMtF","dataset for signal-pass template HiMt", RooArgSet(mass), Import( *fullTreeDataHiMtCutF ) );
-  //RooDataHist dataDataHistHiMtF("dataDataHistHiMtF", "", RooArgSet(mass), dataDataSetHiMtF, 1.0);
-  RooDataHist dataDataHistHiMtF = dataSetProducer(fullTreeDataHiMtCutF, mass, 1.0, 1.0, 1.0);
+  RooDataHist dataDataHistHiMtF = dataSetProducer(fullTreeDataHiMtCutF, mass, 1.0, 1.0);
 
   delete fullTreeDataCutF;
   delete fullTreeDataSSCutF;
@@ -661,12 +498,16 @@ void fitStudyTemplatesFromMC(
   //////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist sgnDataHistF = dataSetProducer(fullTreeSgnCutF, mass, NumSgnF, ScaleFactorSgn, 1.0);
+  RooDataHist sgnDataHistF = dataSetProducer(fullTreeSgnCutF, mass, ScaleFactorSgn, 1.0);
   RooHistPdf sgnTemplatePdfF("sgnTemplatePdfF", "", RooArgSet(mass), sgnDataHistF, 4);
+  float numSgnScaledF = getCorrectedEntries(fullTreeSgnCutF, mass, ScaleFactorSgn);
+  RooDataHist sgnDataHistFTemp = dataSetProducer(fullTreeSgnCutFTemp, mass, ScaleFactorSgn, 1.0);
+  RooHistPdf sgnTemplatePdfFTemp("sgnTemplatePdfFTemp", "", RooArgSet(mass), sgnDataHistFTemp, 4);
+  float numSgnScaledTempF = getCorrectedEntries(fullTreeSgnCutFTemp, mass, ScaleFactorSgn);
 
-  RooDataHist sgnDataHistSSF = dataSetProducer(fullTreeSgnSSCutF, mass, NumSgnSSF, ScaleFactorSgn, -1.0);
+  RooDataHist sgnDataHistSSF = dataSetProducer(fullTreeSgnSSCutF, mass, ScaleFactorSgn, -1.0);
 
-  RooDataHist sgnDataHistHiMtF = dataSetProducer(fullTreeSgnHiMtCutF, mass, NumSgnHiMtF, ScaleFactorSgn, -1.0);
+  RooDataHist sgnDataHistHiMtF = dataSetProducer(fullTreeSgnHiMtCutF, mass, ScaleFactorSgn, -1.0);
 
   delete fullTreeSgnCutF;
   delete fullTreeSgnSSCutF;
@@ -677,12 +518,14 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist wjetsDataHistF = dataSetProducer(fullTreeWJetsCutF, mass, NumWJetsF, ScaleFactorWJets, 1.0);
+  RooDataHist wjetsDataHistF = dataSetProducer(fullTreeWJetsCutF, mass, ScaleFactorWJets, 1.0);
   RooHistPdf wjetsHistPdfF("wjetsHistPdfF", "", RooArgSet(mass), wjetsDataHistF, 4);
+  float numWJetsScaledF = getCorrectedEntries(fullTreeWJetsCutF, mass, ScaleFactorWJets,0,51);
 
-  RooDataHist wjetsDataHistSSF = dataSetProducer(fullTreeWJetsSSCutF, mass, NumWJetsSSF, ScaleFactorWJets, -1.0);
+  RooDataHist wjetsDataHistSSF = dataSetProducer(fullTreeWJetsSSCutF, mass, ScaleFactorWJets, -1.0);
 
-  RooDataHist wjetsDataHistHiMtF = dataSetProducer(fullTreeWJetsHiMtCutF, mass, NumWJetsHiMtF, ScaleFactorWJets, -1.0);
+  RooDataHist wjetsDataHistHiMtF = dataSetProducer(fullTreeWJetsHiMtCutF, mass, ScaleFactorWJets, -1.0);
+  float numWJetsScaledFHiMt = getCorrectedEntries(fullTreeWJetsHiMtCutF, mass, ScaleFactorWJets,0,51);
 
   delete fullTreeWJetsCutF;
   delete fullTreeWJetsSSCutF;
@@ -693,12 +536,13 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist zttDataHistF = dataSetProducer(fullTreeZttCutF, mass, NumZttF, ScaleFactorZtt, 1.0);
-  RooHistPdf zttPdfF("zttPdfF", "", RooArgSet(mass), zttDataHistF, 4);  
+  RooDataHist zttDataHistF = dataSetProducer(fullTreeZttCutF, mass, ScaleFactorZtt, 1.0);
+  RooHistPdf zttPdfF("zttPdfF", "", RooArgSet(mass), zttDataHistF, 4); 
+  float numZttScaledF = getCorrectedEntries(fullTreeZttCutF, mass, ScaleFactorZtt);
 
-  RooDataHist zttDataHistSSF = dataSetProducer(fullTreeZttSSCutF, mass, NumZttSSF, ScaleFactorZtt, -1.0);
+  RooDataHist zttDataHistSSF = dataSetProducer(fullTreeZttSSCutF, mass, ScaleFactorZtt, -1.0);
 
-  RooDataHist zttDataHistHiMtF = dataSetProducer(fullTreeZttHiMtCutF, mass, NumZttHiMtF, ScaleFactorZtt, -1.0);
+  RooDataHist zttDataHistHiMtF = dataSetProducer(fullTreeZttHiMtCutF, mass, ScaleFactorZtt, -1.0);
 
   delete fullTreeZttCutF;
   delete fullTreeZttSSCutF;
@@ -709,12 +553,13 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist ttjetsDataHistF = dataSetProducer(fullTreeTTJetsCutF, mass, NumTTJetsF, ScaleFactorTTJets, 1.0);
+  RooDataHist ttjetsDataHistF = dataSetProducer(fullTreeTTJetsCutF, mass, ScaleFactorTTJets, 1.0);
   RooHistPdf ttjetsPdfF("ttjetsPdfF", "", RooArgSet(mass), ttjetsDataHistF, 4);
+  float numTTJetsScaledF = getCorrectedEntries(fullTreeTTJetsCutF, mass, ScaleFactorTTJets);
 
-  RooDataHist ttjetsDataHistSSF = dataSetProducer(fullTreeTTJetsSSCutF, mass, NumTTJetsSSF, ScaleFactorTTJets, -1.0);
+  RooDataHist ttjetsDataHistSSF = dataSetProducer(fullTreeTTJetsSSCutF, mass, ScaleFactorTTJets, -1.0);
 
-  RooDataHist ttjetsDataHistHiMtF = dataSetProducer(fullTreeTTJetsHiMtCutF, mass, NumTTJetsHiMtF, ScaleFactorTTJets, -1.0);
+  RooDataHist ttjetsDataHistHiMtF = dataSetProducer(fullTreeTTJetsHiMtCutF, mass, ScaleFactorTTJets, -1.0);
 
   delete fullTreeTTJetsCutF;
   delete fullTreeTTJetsSSCutF;
@@ -725,14 +570,15 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist wwDataHistF = dataSetProducer(fullTreeWWCutF, mass, NumWWF, ScaleFactorWW, 1.0);
+  RooDataHist wwDataHistF = dataSetProducer(fullTreeWWCutF, mass, ScaleFactorWW, 1.0);
   RooHistPdf wwPdfF("wwPdfF", "", RooArgSet(mass), wwDataHistF, 4);
+  float numWWScaledF = getCorrectedEntries(fullTreeWWCutF, mass, ScaleFactorWW); 
 
   mass.setBins( 50 );
-  RooDataHist wwDataHistSSF = dataSetProducer(fullTreeWWSSCutF, mass, NumWWSSF, ScaleFactorWW, -1.0);
+  RooDataHist wwDataHistSSF = dataSetProducer(fullTreeWWSSCutF, mass, ScaleFactorWW, -1.0);
 
   mass.setBins( 50 );
-  RooDataHist wwDataHistHiMtF = dataSetProducer(fullTreeWWHiMtCutF, mass, NumWWHiMtF, ScaleFactorWW, -1.0);
+  RooDataHist wwDataHistHiMtF = dataSetProducer(fullTreeWWHiMtCutF, mass, ScaleFactorWW, -1.0);
 
   delete fullTreeWWCutF;
   delete fullTreeWWSSCutF;
@@ -743,14 +589,15 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist wzDataHistF = dataSetProducer(fullTreeWZCutF, mass, NumWZF, ScaleFactorWZ, 1.0);
+  RooDataHist wzDataHistF = dataSetProducer(fullTreeWZCutF, mass, ScaleFactorWZ, 1.0);
   RooHistPdf wzPdfF("wzPdfF", "", RooArgSet(mass), wzDataHistF, 4);
+  float numWZScaledF = getCorrectedEntries(fullTreeWZCutF, mass, ScaleFactorWZ);
 
   mass.setBins( 50 );
-  RooDataHist wzDataHistSSF = dataSetProducer(fullTreeWZSSCutF, mass, NumWZSSF, ScaleFactorWZ, -1.0);
+  RooDataHist wzDataHistSSF = dataSetProducer(fullTreeWZSSCutF, mass, ScaleFactorWZ, -1.0);
 
   mass.setBins( 50 );
-  RooDataHist wzDataHistHiMtF = dataSetProducer(fullTreeWZHiMtCutF, mass, NumWZHiMtF, ScaleFactorWZ, -1.0);
+  RooDataHist wzDataHistHiMtF = dataSetProducer(fullTreeWZHiMtCutF, mass, ScaleFactorWZ, -1.0);
 
   delete fullTreeWZCutF;
   delete fullTreeWZSSCutF;
@@ -761,14 +608,15 @@ void fitStudyTemplatesFromMC(
   /////////////////////////////////////////
 
   mass.setBins( 50 );
-  RooDataHist zzDataHistF = dataSetProducer(fullTreeZZCutF, mass, NumZZF, ScaleFactorZZ, 1.0);
+  RooDataHist zzDataHistF = dataSetProducer(fullTreeZZCutF, mass, ScaleFactorZZ, 1.0);
   RooHistPdf zzPdfF("zzPdfF", "", RooArgSet(mass), zzDataHistF, 4);
+  float numZZScaledF = getCorrectedEntries(fullTreeZZCutF, mass, ScaleFactorZZ);
 
   mass.setBins( 50 );
-  RooDataHist zzDataHistSSF = dataSetProducer(fullTreeZZSSCutF, mass, NumZZSSF, ScaleFactorZZ, -1.0);
+  RooDataHist zzDataHistSSF = dataSetProducer(fullTreeZZSSCutF, mass, ScaleFactorZZ, -1.0);
 
   mass.setBins( 50 );
-  RooDataHist zzDataHistHiMtF = dataSetProducer(fullTreeZZHiMtCutF, mass, NumZZHiMtF, ScaleFactorZZ, -1.0);
+  RooDataHist zzDataHistHiMtF = dataSetProducer(fullTreeZZHiMtCutF, mass, ScaleFactorZZ, -1.0);
 
   delete fullTreeZZCutF;
   delete fullTreeZZSSCutF;
@@ -784,11 +632,14 @@ void fitStudyTemplatesFromMC(
   dataDataHistHiMtF.add(wzDataHistHiMtF);
   dataDataHistHiMtF.add(zzDataHistHiMtF);
   //dataDataHistHiMtF.plotOn(massFrame2,MarkerColor(kBlue));
-  float exWJetsF = NumWJetsF/NumWJetsHiMtF;
+  float exWJetsF = numWJetsScaledF/numWJetsScaledFHiMt;
   cout<<"exWJetsF "<<exWJetsF<<endl;
   RooDataHist dataDataHistHiMtScaledF("dataDataHistHiMtScaledF", "", RooArgSet(mass), dataDataHistHiMtF, exWJetsF);
+  float numWJetsDataDrivenF = dataDataHistHiMtScaledF.sumEntries(); 
   //dataDataHistHiMtScaledF.plotOn(massFrame2,MarkerColor(kViolet));
-  RooHistPdf WJetsDataDrivenHistPdfF("WJetsDataDrivenHistPdfF", "", RooArgSet(mass), dataDataHistHiMtScaledF, 4);
+  RooHistPdf WJetsDataDrivenHistPdfF("WJetsDataDrivenHistPdfF", "", RooArgSet(mass), dataDataHistHiMtScaledF, 4); //Shape WJets Fail da Sideband
+  RooDataSet WJetsPseudoDataSetF = *(wjetsHistPdfF.generate(mass,(int)numWJetsDataDrivenF));
+  RooDataHist WJetsPseudoDataHistF("WJetsPseudoDataHistF", "", RooArgSet(mass), WJetsPseudoDataSetF, 4);
 
   // QCD
   dataDataHistSSF.add(sgnDataHistSSF);
@@ -800,6 +651,7 @@ void fitStudyTemplatesFromMC(
   dataDataHistSSF.add(zzDataHistSSF);
 
   RooHistPdf QCDHistPdfF("QCDHistPdfF", "", RooArgSet(mass), dataDataHistSSF, 4);
+  float numQCDDataDrivenF = dataDataHistSSF.sumEntries(); 
 
   //////////////////////////////////////////////////////////////// Datasets & Pdfs //////////////////////////////////////////////////////////////// 
 
@@ -835,7 +687,7 @@ void fitStudyTemplatesFromMC(
   DataDataHistF.add(((RooDataHist)dataDataHistSSF)); //QCD
   DataDataHistF.add(((RooDataHist)zttDataHistF));
   DataDataHistF.add(((RooDataHist)sgnDataHistF));
-  DataDataHistF.add(((RooDataHist)wjetsDataHistF)); //WJets
+  DataDataHistF.add(((RooDataHist)WJetsPseudoDataHistF)); //WJets
   DataDataHistF.add(((RooDataHist)ttjetsDataHistF));
   DataDataHistF.add(((RooDataHist)wwDataHistF));
   DataDataHistF.add(((RooDataHist)wzDataHistF));
@@ -846,27 +698,27 @@ void fitStudyTemplatesFromMC(
 
   //Create pdfs for passing
   RooRealVar CoeffSgnP("CoeffSgnP","",0,10000000);
-  RooRealVar CoeffZttP("CoeffZttP","",0,10000000);
-  RooRealVar CoeffWJetsP("CoeffWJetsP","",0,10000000);
-  RooRealVar CoeffTTJetsP("CoeffTTJetsP","",0,10000000);
-  RooRealVar CoeffQCDP("CoeffQCDP","",0,10000000);
-  RooRealVar CoeffWWP("CoeffWWP","",0,10000000);
-  RooRealVar CoeffWZP("CoeffWZP","",0,10000000);
-  RooRealVar CoeffZZP("CoeffZZP","",0,10000000);
+  RooRealVar CoeffZttP("CoeffZttP","",numZttScaled,0,10000000);
+  RooRealVar CoeffWJetsP("CoeffWJetsP","",numWJetsDataDriven,0,10000000);
+  RooRealVar CoeffTTJetsP("CoeffTTJetsP","",numTTJetsScaled,0,10000000);
+  RooRealVar CoeffQCDP("CoeffQCDP","",numQCDDataDriven,0,10000000);
+  RooRealVar CoeffWWP("CoeffWWP","",numWWScaled,0,10000000);
+  RooRealVar CoeffWZP("CoeffWZP","",numWZScaled,0,10000000);
+  RooRealVar CoeffZZP("CoeffZZP","",numZZScaled,0,10000000);
 
-  RooAddPdf DataModelP("DataModelP", "", RooArgList(sgnTemplatePdf,zttPdf,WJetsHistPdfP_C,ttjetsPdf,QCDHistPdfP_C,wwPdf,wzPdf,zzPdf), RooArgList(CoeffSgnP/*DataNumSgnP*/,CoeffZttP,CoeffWJetsP,CoeffTTJetsP,CoeffQCDP,CoeffWWP,CoeffWZP,CoeffZZP));
+  RooAddPdf DataModelP("DataModelP", "", RooArgList(sgnTemplatePdfTemp,zttPdf,WJetsHistPdfP_C,ttjetsPdf,QCDHistPdfP_C,wwPdf,wzPdf,zzPdf), RooArgList(CoeffSgnP/*DataNumSgnP*/,CoeffZttP,CoeffWJetsP,CoeffTTJetsP,CoeffQCDP,CoeffWWP,CoeffWZP,CoeffZZP));
 
   //Create pdfs for failing
   RooRealVar CoeffSgnF("CoeffSgnF","",0,10000000);
-  RooRealVar CoeffZttF("CoeffZttF","",0,10000000);
-  RooRealVar CoeffWJetsF("CoeffWJetsF","",0,10000000);
-  RooRealVar CoeffTTJetsF("CoeffTTJetsF","",0,10000000);
-  RooRealVar CoeffQCDF("CoeffQCDF","",0,10000000);
-  RooRealVar CoeffWWF("CoeffWWF","",0,10000000);
-  RooRealVar CoeffWZF("CoeffWZF","",0,10000000);
-  RooRealVar CoeffZZF("CoeffZZF","",0,10000000);
+  RooRealVar CoeffZttF("CoeffZttF","",numZttScaledF,0,10000000);
+  RooRealVar CoeffWJetsF("CoeffWJetsF","",numWJetsDataDrivenF,0,10000000);
+  RooRealVar CoeffTTJetsF("CoeffTTJetsF","",numTTJetsScaledF,0,10000000);
+  RooRealVar CoeffQCDF("CoeffQCDF","",numQCDDataDrivenF,0,10000000);
+  RooRealVar CoeffWWF("CoeffWWF","",numWWScaledF,0,10000000);
+  RooRealVar CoeffWZF("CoeffWZF","",numWZScaledF,0,10000000);
+  RooRealVar CoeffZZF("CoeffZZF","",numZZScaledF,0,10000000);
 
-  RooAddPdf DataModelF("DataModelF", "", RooArgList(sgnTemplatePdfF,zttPdfF,WJetsHistPdfF_C,ttjetsPdfF,QCDHistPdfF_C,wwPdfF,wzPdfF,zzPdfF), RooArgList(CoeffSgnF/*DataNumSgnP*/,CoeffZttF,CoeffWJetsF,CoeffTTJetsF,CoeffQCDF,CoeffWWF,CoeffWZF,CoeffZZF));
+  RooAddPdf DataModelF("DataModelF", "", RooArgList(sgnTemplatePdfFTemp,zttPdfF,wjetsHistPdfF,ttjetsPdfF,QCDHistPdfF_C,wwPdfF,wzPdfF,zzPdfF), RooArgList(CoeffSgnF/*DataNumSgnP*/,CoeffZttF,CoeffWJetsF,CoeffTTJetsF,CoeffQCDF,CoeffWWF,CoeffWZF,CoeffZZF));
 
   mass.setBins(nBins_);
 
@@ -896,7 +748,7 @@ void fitStudyTemplatesFromMC(
   RooPlot* DataFrameP = mass.frame(Bins(40),Title(Form("CMS Preliminary 2012 #sqrt{s}=8 TeV %s  L=%.0f pb^{-1}: passing probe",theSample.c_str(),Lumi_)));
   DataCombData.plotOn(DataFrameP,Cut("category==category::pass"),Name("dataP"));
   DataSimPdf.plotOn(DataFrameP,Slice(category,"pass"), ProjWData(category,DataCombData), LineColor(kBlack),Name("modelP"));
-  DataSimPdf.plotOn(DataFrameP,Slice(category,"pass"), ProjWData(category,DataCombData), Components("sgnTemplatePdf"), LineColor(kBlue), LineStyle(kSolid),Name("signal onlyP"));
+  DataSimPdf.plotOn(DataFrameP,Slice(category,"pass"), ProjWData(category,DataCombData), Components("sgnTemplatePdfTemp"), LineColor(kBlue), LineStyle(kSolid),Name("signal onlyP"));
   DataSimPdf.plotOn(DataFrameP,Slice(category,"pass"), ProjWData(category,DataCombData), Components("zttPdf"), LineColor(kRed), LineStyle(kSolid),Name("ZttP"));
   DataSimPdf.plotOn(DataFrameP,Slice(category,"pass"), ProjWData(category,DataCombData), Components("WJetsDataDrivenHistPdfP"), LineColor(kGreen), LineStyle(kSolid),Name("WJetsP"));
   DataSimPdf.plotOn(DataFrameP,Slice(category,"pass"), ProjWData(category,DataCombData), Components("ttjetsPdf"), LineColor(kMagenta), LineStyle(kSolid),Name("TTJetsP"));
@@ -912,9 +764,9 @@ void fitStudyTemplatesFromMC(
   RooPlot* DataFrameF = mass.frame(Bins(40),Title(Form("CMS Preliminary 2012 #sqrt{s}=8 TeV %s  L=%.0f pb^{-1}: failing probe",theSample.c_str(),Lumi_)));
   DataCombData.plotOn(DataFrameF,Cut("category==category::fail"),Name("dataF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), LineColor(kBlack),Name("modelF"));
-  DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("sgnTemplatePdfF"), LineColor(kBlue), LineStyle(kSolid),Name("signal onlyF"));
+  DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("sgnTemplatePdfFTemp"), LineColor(kBlue), LineStyle(kSolid),Name("signal onlyF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("zttPdfF"), LineColor(kRed), LineStyle(kSolid),Name("ZttF"));
-  DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("WJetsDataDrivenHistPdfF"), LineColor(kGreen), LineStyle(kSolid),Name("WJetsF"));
+  DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("wjetsHistPdfF"), LineColor(kGreen), LineStyle(kSolid),Name("WJetsF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("ttjetsPdfF"), LineColor(kMagenta), LineStyle(kSolid),Name("TTJetsF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("QCDHistPdfF"), LineColor(kOrange), LineStyle(kSolid),Name("QCDF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("wwPdfF"), LineColor(kViolet), LineStyle(kSolid),Name("WWF"));
@@ -986,7 +838,7 @@ void fitStudyTemplatesFromMC(
   ResDataCombinedFit->printValue(std::cout);
   cout << endl;
 
-  RooFormulaVar DataEffFit("DataEffFit","DataEffFit","CoeffSgnP/(CoeffSgnP+CoeffSgnF)", RooArgSet(CoeffSgnP,CoeffSgnP,CoeffSgnF));
+  RooFormulaVar DataEffFit("DataEffFit","DataEffFit","CoeffSgnP/(CoeffSgnP+CoeffSgnF)", RooArgList(CoeffSgnP,CoeffSgnP,CoeffSgnF));
   float funcError = DataEffFit.getPropagatedError(*ResDataCombinedFit) ; 
 
   std::vector<float> results;
@@ -1001,6 +853,7 @@ void fitStudyTemplatesFromMC(
 
   cout<<"Sgn passing : "<< CoeffSgnP.getVal()<<" +/- "<<results[2]<<" Sgn failing : "<<CoeffSgnF.getVal()<< " +/- "<<results[3]<<endl;
   cout<<"Efficiency : "<< CoeffSgnP.getVal()/(CoeffSgnP.getVal()+CoeffSgnF.getVal()) << " +/- " <<results[5]<<endl;
+  cout<<DataEffFit.getVal()<<endl;
 
   string TreeName = "treeForSaving_"+tnp_+"_"+category_;
   TFile *Save = new TFile(Form("%s_%.2f.root",TreeName.c_str(), binCenter_),"RECREATE");
