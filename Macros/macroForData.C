@@ -82,6 +82,25 @@ float getCorrectedEntries(TTree * fullTreeSgnCut, RooRealVar mass, float ScaleFa
 
 }
 
+float getError(TTree * fullTreeSgnCut, RooRealVar mass, float ScaleFactorSgn, int a = 1, int b = 50){
+
+	TH1F* hMass = new TH1F("hMass","",50,70,120);
+  	if(ScaleFactorSgn != 1) {
+  		fullTreeSgnCut->Draw("mass>>hMass","tag_puMCWeightRun2012");
+		//hMass->Scale(ScaleFactorSgn*0.987883333*0.985533333*0.9548436313);
+	}
+	else fullTreeSgnCut->Draw("mass>>hMass");
+        //cout<<"sgnDataSet "<<fullTreeSgnCut->GetEntries()<<endl;
+        //cout<<"scaled "<<hMass->Integral(0,51)<<endl;
+
+	float numRaw = hMass->Integral(a,b);
+	float errRaw = sqrt(numRaw);
+	float errScaled = errRaw*ScaleFactorSgn*0.987883333*0.985533333*0.9548436313;
+
+	return errScaled;
+
+}
+
 void fitStudyTemplatesFromMC(
 	const string tnp_                = "muToTau",
 	const string category_           = "passingIsoLooseMuonVetoLoose",
@@ -190,6 +209,7 @@ void fitStudyTemplatesFromMC(
 
   TTree* fullTreeSgnCut = fullTreeSgn->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeSgnCutTemp = fullTreeSgn->CopyTree( Form("(mcTrue && %s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
+  TTree* fullTreeSgnCutTempJet = fullTreeSgn->CopyTree( Form("(mcTrue == 0 && %s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeWJetsCut = fullTreeWJets->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeZttCut = fullTreeZtt->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeTTJetsCut = fullTreeTTJets->CopyTree( Form("(%s%s%f && %s && %s)",category_.c_str(),condition_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
@@ -283,6 +303,9 @@ void fitStudyTemplatesFromMC(
   RooDataHist sgnDataHistTemp = dataSetProducer(fullTreeSgnCutTemp, mass, ScaleFactorSgn, 1.0);
   RooHistPdf sgnTemplatePdfTemp("sgnTemplatePdfTemp", "", RooArgSet(mass), sgnDataHistTemp, 4);
   float numSgnScaledTemp = getCorrectedEntries(fullTreeSgnCutTemp, mass, ScaleFactorSgn);
+  RooDataHist sgnDataHistTempJet = dataSetProducer(fullTreeSgnCutTempJet, mass, ScaleFactorSgn, 1.0);
+  RooHistPdf sgnTemplatePdfTempJet("sgnTemplatePdfTempJet", "", RooArgSet(mass), sgnDataHistTempJet, 4);
+  float numSgnScaledTempJet = getCorrectedEntries(fullTreeSgnCutTempJet, mass, ScaleFactorSgn);
 
   RooDataHist sgnDataHistSS = dataSetProducer(fullTreeSgnSSCut, mass, ScaleFactorSgn, -1.0);
 
@@ -440,6 +463,7 @@ void fitStudyTemplatesFromMC(
 
   TTree* fullTreeSgnCutF = fullTreeSgn->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeSgnCutFTemp = fullTreeSgn->CopyTree( Form("(mcTrue && %s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
+  TTree* fullTreeSgnCutFTempJet = fullTreeSgn->CopyTree( Form("(mcTrue == 0 && %s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeWJetsCutF = fullTreeWJets->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeZttCutF = fullTreeZtt->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
   TTree* fullTreeTTJetsCutF = fullTreeTTJets->CopyTree( Form("(%s<%f && %s && %s)",category_.c_str(),cutValue_,bin_.c_str(),additionalCut_.c_str()) );
@@ -502,6 +526,9 @@ void fitStudyTemplatesFromMC(
   RooDataHist sgnDataHistFTemp = dataSetProducer(fullTreeSgnCutFTemp, mass, ScaleFactorSgn, 1.0);
   RooHistPdf sgnTemplatePdfFTemp("sgnTemplatePdfFTemp", "", RooArgSet(mass), sgnDataHistFTemp, 4);
   float numSgnScaledTempF = getCorrectedEntries(fullTreeSgnCutFTemp, mass, ScaleFactorSgn);
+  RooDataHist sgnDataHistFTempJet = dataSetProducer(fullTreeSgnCutFTempJet, mass, ScaleFactorSgn, 1.0);
+  RooHistPdf sgnTemplatePdfFTempJet("sgnTemplatePdfFTempJet", "", RooArgSet(mass), sgnDataHistFTempJet, 4);
+  float numSgnScaledTempFJet = getCorrectedEntries(fullTreeSgnCutFTempJet, mass, ScaleFactorSgn);
 
   RooDataHist sgnDataHistSSF = dataSetProducer(fullTreeSgnSSCutF, mass, ScaleFactorSgn, -1.0);
 
@@ -672,6 +699,7 @@ void fitStudyTemplatesFromMC(
 
   //Create pdfs for passing
   RooRealVar CoeffSgnP("CoeffSgnP","",0,10000000);
+  RooRealVar CoeffSgnJetP("CoeffSgnJetP","",numSgnScaledTempJet,0.8*numSgnScaledTempJet,1.2*numSgnScaledTempJet);
   RooRealVar CoeffZttP("CoeffZttP","",numZttScaled,0,10000000);
   RooRealVar CoeffWJetsP("CoeffWJetsP","",numWJetsDataDriven,0,10000000);
   RooRealVar CoeffTTJetsP("CoeffTTJetsP","",numTTJetsScaled,0,10000000);
@@ -680,19 +708,23 @@ void fitStudyTemplatesFromMC(
   RooRealVar CoeffWZP("CoeffWZP","",numWZScaled,0,10000000);
   RooRealVar CoeffZZP("CoeffZZP","",numZZScaled,0,10000000);
 
-  RooAddPdf DataModelP("DataModelP", "", RooArgList(sgnTemplatePdfTemp,zttPdf,WJetsHistPdfP_C,ttjetsPdf,QCDHistPdfP_C,wwPdf,wzPdf,zzPdf), RooArgList(CoeffSgnP/*DataNumSgnP*/,CoeffZttP,CoeffWJetsP,CoeffTTJetsP,CoeffQCDP,CoeffWWP,CoeffWZP,CoeffZZP));
+  RooAddPdf DataModelP("DataModelP", "", RooArgList(sgnTemplatePdfTemp,sgnTemplatePdfTempJet,zttPdf,WJetsHistPdfP_C,ttjetsPdf,QCDHistPdfP_C,wwPdf,wzPdf,zzPdf), RooArgList(CoeffSgnP/*DataNumSgnP*/,CoeffSgnJetP,CoeffZttP,CoeffWJetsP,CoeffTTJetsP,CoeffQCDP,CoeffWWP,CoeffWZP,CoeffZZP));
+
+  float errWZF = getError(fullTreeWZCutF, mass, ScaleFactorWZ, 1.0);
+  float errZZF = getError(fullTreeZZCutF, mass, ScaleFactorZZ, 1.0);
 
   //Create pdfs for failing
   RooRealVar CoeffSgnF("CoeffSgnF","",0,10000000);
+  RooRealVar CoeffSgnJetF("CoeffSgnJetF","",numSgnScaledTempFJet,0.8*numSgnScaledTempFJet,1.2*numSgnScaledTempFJet);
   RooRealVar CoeffZttF("CoeffZttF","",numZttScaledF,0,10000000);
   RooRealVar CoeffWJetsF("CoeffWJetsF","",numWJetsDataDrivenF,0,10000000);
   RooRealVar CoeffTTJetsF("CoeffTTJetsF","",numTTJetsScaledF,0,10000000);
   RooRealVar CoeffQCDF("CoeffQCDF","",numQCDDataDrivenF,0,10000000);
   RooRealVar CoeffWWF("CoeffWWF","",numWWScaledF,0,10000000);
-  RooRealVar CoeffWZF("CoeffWZF","",numWZScaledF,0,10000000);
-  RooRealVar CoeffZZF("CoeffZZF","",numZZScaledF,0,10000000);
+  RooRealVar CoeffWZF("CoeffWZF","",numWZScaledF,numWZScaledF-2*errWZF,numWZScaledF+2*errWZF);
+  RooRealVar CoeffZZF("CoeffZZF","",numZZScaledF,numZZScaledF-2*errZZF,numZZScaledF+2*errZZF);
 
-  RooAddPdf DataModelF("DataModelF", "", RooArgList(sgnTemplatePdfFTemp,zttPdfF,wjetsHistPdfF,ttjetsPdfF,QCDHistPdfF_C,wwPdfF,wzPdfF,zzPdfF), RooArgList(CoeffSgnF/*DataNumSgnP*/,CoeffZttF,CoeffWJetsF,CoeffTTJetsF,CoeffQCDF,CoeffWWF,CoeffWZF,CoeffZZF));
+  RooAddPdf DataModelF("DataModelF", "", RooArgList(sgnTemplatePdfFTemp,sgnTemplatePdfFTempJet,zttPdfF,wjetsHistPdfF,ttjetsPdfF,QCDHistPdfF_C,wwPdfF,wzPdfF,zzPdfF), RooArgList(CoeffSgnF/*DataNumSgnP*/,CoeffSgnJetF,CoeffZttF,CoeffWJetsF,CoeffTTJetsF,CoeffQCDF,CoeffWWF,CoeffWZF,CoeffZZF));
 
   mass.setBins(nBins_);
 
@@ -723,6 +755,7 @@ void fitStudyTemplatesFromMC(
   DataCombData.plotOn(DataFrameP,Cut("category==category::pass"),Name("dataP"));
   DataSimPdf.plotOn(DataFrameP,Slice(category,"pass"), ProjWData(category,DataCombData), LineColor(kBlack),Name("modelP"));
   DataSimPdf.plotOn(DataFrameP,Slice(category,"pass"), ProjWData(category,DataCombData), Components("sgnTemplatePdfTemp"), LineColor(kBlue), LineStyle(kSolid),Name("signal onlyP"));
+  DataSimPdf.plotOn(DataFrameP,Slice(category,"pass"), ProjWData(category,DataCombData), Components("sgnTemplatePdfTempJet"), LineColor(kBlue-10), LineStyle(kSolid),Name("signal onlyP (jet)"));
   DataSimPdf.plotOn(DataFrameP,Slice(category,"pass"), ProjWData(category,DataCombData), Components("zttPdf"), LineColor(kRed), LineStyle(kSolid),Name("ZttP"));
   DataSimPdf.plotOn(DataFrameP,Slice(category,"pass"), ProjWData(category,DataCombData), Components("WJetsDataDrivenHistPdfP"), LineColor(kGreen), LineStyle(kSolid),Name("WJetsP"));
   DataSimPdf.plotOn(DataFrameP,Slice(category,"pass"), ProjWData(category,DataCombData), Components("ttjetsPdf"), LineColor(kMagenta), LineStyle(kSolid),Name("TTJetsP"));
@@ -739,6 +772,7 @@ void fitStudyTemplatesFromMC(
   DataCombData.plotOn(DataFrameF,Cut("category==category::fail"),Name("dataF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), LineColor(kBlack),Name("modelF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("sgnTemplatePdfFTemp"), LineColor(kBlue), LineStyle(kSolid),Name("signal onlyF"));
+  DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("sgnTemplatePdfFTempJet"), LineColor(kBlue-10), LineStyle(kSolid),Name("signal onlyF (jet)"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("zttPdfF"), LineColor(kRed), LineStyle(kSolid),Name("ZttF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("wjetsHistPdfF"), LineColor(kGreen), LineStyle(kSolid),Name("WJetsF"));
   DataSimPdf.plotOn(DataFrameF,Slice(category,"fail"), ProjWData(category,DataCombData), Components("ttjetsPdfF"), LineColor(kMagenta), LineStyle(kSolid),Name("TTJetsF"));
@@ -765,7 +799,8 @@ void fitStudyTemplatesFromMC(
   leg1->AddEntry("dataP","Data", "P");
   leg1->AddEntry("modelP","Signal + bkg","L");
   //leg1->AddEntry("backgroundP","Background only", "L");
-  leg1->AddEntry("signal onlyP","Signal only", "L");
+  leg1->AddEntry("signal onlyP","Signal (#mu#rightarrow#tau)", "L");
+  leg1->AddEntry("signal onlyP (jet)","Signal (jet#rightarrow#tau)", "L");
   leg1->AddEntry("ZttP","Z#rightarrow#tau#tau", "L");
   leg1->AddEntry("WJetsP","WJets", "L");
   leg1->AddEntry("TTJetsP","TTJets", "L");
@@ -794,7 +829,8 @@ void fitStudyTemplatesFromMC(
   leg2->AddEntry("dataF","Data", "P");
   leg2->AddEntry("modelF","Signal + bkg","L");
   //leg2->AddEntry("backgroundF","Background only", "L");
-  leg2->AddEntry("signal onlyF","Signal only", "L");
+  leg2->AddEntry("signal onlyF","Signal (#mu#rightarrow#tau)", "L");
+  leg2->AddEntry("signal onlyF (jet)","Signal (jet#rightarrow#tau)", "L");
   leg2->AddEntry("ZttF","Z#rightarrow#tau#tau", "L");
   leg2->AddEntry("WJetsF","WJets", "L");
   leg2->AddEntry("TTJetsF","TTJets", "L");
