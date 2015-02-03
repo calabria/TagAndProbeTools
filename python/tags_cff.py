@@ -7,7 +7,7 @@ vecData = (12261.2, 32854.9, 89717.9, 262466, 546468, 3.03611e+06, 1.74973e+07, 
 addUserVariables = cms.EDProducer("UserDefinedVariables",
     	objects = cms.InputTag("muonVariables"),
     	triggerResults = cms.InputTag("patTriggerEvent"),
-    	met = cms.InputTag("patPFMetByMVA"),
+    	met = cms.InputTag("patPFMETsTypeIcorrected"),
     	isMC = cms.bool(False), #####
     	TrueDist2011A = cms.vdouble(vecData),
     	TrueDist2011B = cms.vdouble(vecData),
@@ -16,7 +16,7 @@ addUserVariables = cms.EDProducer("UserDefinedVariables",
 
 tagAnyMu = cms.EDFilter("PATMuonRefSelector",
 	src = cms.InputTag("muonVariables"),
-	cut = cms.string("pt > 25.0 && abs(eta) < 2.1 && abs(userFloat('dxyWrtPV')) < 0.045 && abs(userFloat('dzWrtPV')) < 0.2" +
+	cut = cms.string("pt > 24.0 && abs(eta) < 2.1 && abs(userFloat('dxyWrtPV')) < 0.045 && abs(userFloat('dzWrtPV')) < 0.2" +
                          " && ("+
                          "(isGlobalMuon"+
                          " && globalTrack.isNonnull "+
