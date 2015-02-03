@@ -70,6 +70,7 @@ UserDefinedVariables::UserDefinedVariables(const edm::ParameterSet & iConfig) :
   produces<edm::ValueMap<float> >("triggerBitSingleMu");
   produces<edm::ValueMap<float> >("muTriggerMatching");
   produces<edm::ValueMap<float> >("mvaMET");
+  produces<edm::ValueMap<float> >("PFRelIsoDB04v2");
 }
 
 
@@ -119,6 +120,7 @@ void UserDefinedVariables::produce(edm::Event & iEvent, const edm::EventSetup & 
     std::vector<float> values2;
     std::vector<float> values3;
     std::vector<float> valuesMVAMet;
+    std::vector<float> valuesPFRelIsoDB04v2;
 
     View<reco::Candidate>::const_iterator object; 
     for (object = objects->begin(); object != objects->end(); ++object) {
@@ -131,6 +133,10 @@ void UserDefinedVariables::produce(edm::Event & iEvent, const edm::EventSetup & 
       values2.push_back(mcPUweight2011A);
       values3.push_back(mcPUweight2011B);
       valuesMVAMet.push_back(metHandle->front().et());
+
+      const pat::Muon* muon = dynamic_cast<const pat::Muon*>(object->clone());
+      if(muon) valuesPFRelIsoDB04v2.push_back(muon->userFloat("PFRelIsoDB04v2"));
+      else valuesPFRelIsoDB04v2.push_back(-1);
 
     }
 
@@ -158,6 +164,12 @@ void UserDefinedVariables::produce(edm::Event & iEvent, const edm::EventSetup & 
     fillerMVA.insert(objects, valuesMVAMet.begin(), valuesMVAMet.end());
     fillerMVA.fill();
     iEvent.put(valMapMVAMet, "mvaMET");
+
+    std::auto_ptr<ValueMap<float> > valMapIso(new ValueMap<float>());
+    ValueMap<float>::Filler fillerIso(*valMapIso);
+    fillerIso.insert(objects, valuesPFRelIsoDB04v2.begin(), valuesPFRelIsoDB04v2.end());
+    fillerIso.fill();
+    iEvent.put(valMapIso, "PFRelIsoDB04v2");
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
